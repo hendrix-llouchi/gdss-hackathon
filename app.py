@@ -206,7 +206,7 @@ st.markdown("""
         margin: 0 !important;
     }
     /* Mobile: compact single-row navbar */
-    @media (max-width: 768px) {
+    @media (max-width: 950px) {
         .nav-container {
             width: 96% !important;
             padding: 0.4rem 0.75rem !important;
@@ -239,6 +239,32 @@ st.markdown("""
         }
         .block-container {
             padding-top: 4.5rem !important;
+        }
+    }
+
+    /* Tablet & Medium Screens: slightly more compact navbar to prevent overflow */
+    @media (min-width: 951px) and (max-width: 1150px) {
+        .nav-container {
+            padding: 0.5rem 1rem !important;
+        }
+        .nav-center {
+            gap: 0.8rem !important;
+        }
+        .nav-tab {
+            font-size: 0.82rem !important;
+        }
+        .step-num {
+            width: 18px !important;
+            height: 18px !important;
+            font-size: 0.68rem !important;
+            margin-right: 5px !important;
+        }
+        .nav-logo {
+            font-size: 1.1rem !important;
+        }
+        .nav-badge {
+            font-size: 0.75rem !important;
+            padding: 0.3rem 0.6rem !important;
         }
     }
     /* Hide the zero-height iframe container used for JS injection so it doesn't add blank space */
