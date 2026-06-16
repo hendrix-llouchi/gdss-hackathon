@@ -95,7 +95,8 @@ st.markdown("""
     }
 
     /* Input Fields & Widgets */
-    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div[role="combobox"] {
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stSelectbox"] [data-baseweb="select"] {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
         color: #0f172a !important;
@@ -104,18 +105,55 @@ st.markdown("""
         height: 42px !important;
         transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
     }
+    /* Target selectbox value wrapper to ensure it is white-bg and has dark text */
+    div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    /* Ensure child text and spans inside the selectbox also use the dark color */
+    div[data-testid="stSelectbox"] [data-baseweb="select"] * {
+        color: #0f172a !important;
+    }
     div[data-testid="stTextInput"] input:hover,
-    div[data-testid="stSelectbox"] div[role="combobox"]:hover {
+    div[data-testid="stSelectbox"] [data-baseweb="select"]:hover {
         border-color: #94a3b8 !important;
     }
     div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stSelectbox"] div[role="combobox"]:focus,
-    div[data-testid="stSelectbox"] div[role="combobox"][aria-expanded="true"] {
+    div[data-testid="stSelectbox"] [data-baseweb="select"]:focus {
         border-color: #0f172a !important;
         box-shadow: 0 0 0 1px #0f172a !important;
     }
-    div[data-testid="stSelectbox"] div[role="combobox"],
-    div[data-testid="stSelectbox"] div[role="combobox"] *,
+    /* Placeholder colors */
+    div[data-testid="stTextInput"] input::placeholder {
+        color: #94a3b8 !important;
+        opacity: 1 !important;
+    }
+    /* Selectbox dropdown items and portals */
+    [data-baseweb="popover"] ul,
+    [data-baseweb="menu"],
+    div[role="listbox"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+    }
+    [data-baseweb="popover"] ul li,
+    [data-baseweb="menu"] li,
+    div[role="option"],
+    li[role="option"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        padding: 0.5rem 1rem !important;
+        transition: background-color 0.15s ease !important;
+    }
+    [data-baseweb="popover"] ul li:hover,
+    [data-baseweb="menu"] li:hover,
+    div[role="option"]:hover,
+    li[role="option"]:hover {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+    }
+    div[data-testid="stSelectbox"] [data-baseweb="select"],
     div[role="option"],
     li[role="option"],
     [data-baseweb="menu"] * {
@@ -376,6 +414,8 @@ st.markdown("""
         box-shadow: 0 12px 35px rgba(0, 0, 0, 0.03) !important;
     }
 
+    /* Expander Header (Modern Streamlit uses summary element) */
+    div[data-testid="stExpander"] summary,
     .streamlit-expanderHeader {
         background-color: #ffffff !important;
         border-bottom: none !important;
@@ -383,7 +423,25 @@ st.markdown("""
         font-weight: 600 !important;
         color: #0f172a !important;
         padding: 1rem 1.5rem !important;
+        transition: background-color 0.2s ease !important;
     }
+    /* Expander Header Hover */
+    div[data-testid="stExpander"] summary:hover {
+        background-color: #f8fafc !important;
+    }
+    /* Target the text wrapper inside summary */
+    div[data-testid="stExpander"] summary > div[data-testid="stMarkdownContainer"] p {
+        color: #0f172a !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 600 !important;
+    }
+    /* Target the toggle icon */
+    div[data-testid="stExpander"] summary > svg[data-testid="stExpanderToggleIcon"] {
+        fill: #0f172a !important;
+    }
+
+    /* Expander Content */
+    div[data-testid="stExpander"] div[data-testid="stExpanderDetails"],
     .streamlit-expanderContent {
         background-color: #ffffff !important;
         border-top: 1px solid #f1f5f9 !important;
@@ -425,6 +483,22 @@ st.markdown("""
     div[data-testid="stFileUploader"] section:hover {
         border-color: #0f172a !important;
         background-color: #f8fafc !important;
+    }
+    /* Fix file uploader text elements that default to white/invisible in dark theme base */
+    div[data-testid="stFileUploader"] section span,
+    div[data-testid="stFileUploader"] section p,
+    div[data-testid="stFileUploader"] section small,
+    div[data-testid="stFileUploader"] section div {
+        color: #475569 !important;
+    }
+    /* Ensure the Upload button inside file uploader keeps its dark background and white text */
+    div[data-testid="stFileUploader"] section button,
+    div[data-testid="stFileUploader"] section button * {
+        color: #ffffff !important;
+        background-color: #0f172a !important;
+    }
+    div[data-testid="stFileUploader"] section button:hover {
+        background-color: #1e293b !important;
     }
 
     /* Table & Dataframe */
