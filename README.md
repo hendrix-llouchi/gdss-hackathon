@@ -1,6 +1,9 @@
 # 🏷️ IMDB Auto-Fill Tool
 **GDSS-Maverick Hackathon 2026** · AI-Driven Image-to-Item Master Data
 
+## 🌐 Live Demo
+https://gdss-hackathon-aw2swnadk2wp8eka4nmb2k.streamlit.app/
+
 ## Overview
 This tool accepts product images, automatically extracts 13 Item Master Database (IMDB) attributes using a vision AI model, and exports a structured Excel/CSV file ready for database upload. It eliminates manual product data entry for retail teams.
 
