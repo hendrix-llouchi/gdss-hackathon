@@ -181,6 +181,11 @@ st.markdown("""
         font-size: 0.85rem !important;
     }
 
+    .nav-wrapper {
+        container-type: inline-size;
+        width: 100%;
+    }
+
     /* Top Navigation Capsule */
     .nav-container {
         display: flex;
@@ -205,8 +210,8 @@ st.markdown("""
         z-index: 99999 !important;
         margin: 0 !important;
     }
-    /* Mobile: compact single-row navbar */
-    @media (max-width: 950px) {
+    /* Mobile/Small Container: compact single-row navbar */
+    @container (max-width: 850px) {
         .nav-container {
             width: 96% !important;
             padding: 0.4rem 0.75rem !important;
@@ -222,7 +227,7 @@ st.markdown("""
             margin-right: 0.5rem !important;
             border-radius: 8px !important;
         }
-        /* Hide step text labels on mobile, show only the circled numbers */
+        /* Hide step text labels on mobile/small containers, show only the circled numbers */
         .nav-tab {
             font-size: 0 !important;
         }
@@ -237,13 +242,10 @@ st.markdown("""
             font-size: 0.65rem !important;
             padding: 0.2rem 0.5rem !important;
         }
-        .block-container {
-            padding-top: 4.5rem !important;
-        }
     }
 
-    /* Tablet & Medium Screens: slightly more compact navbar to prevent overflow */
-    @media (min-width: 951px) and (max-width: 1150px) {
+    /* Tablet & Medium Containers: slightly more compact navbar to prevent overflow */
+    @container (min-width: 851px) and (max-width: 1100px) {
         .nav-container {
             padding: 0.5rem 1rem !important;
         }
@@ -265,6 +267,13 @@ st.markdown("""
         .nav-badge {
             font-size: 0.75rem !important;
             padding: 0.3rem 0.6rem !important;
+        }
+    }
+
+    /* Maintain viewport-based padding for the main content block container */
+    @media (max-width: 950px) {
+        .block-container {
+            padding-top: 4.5rem !important;
         }
     }
     /* Hide the zero-height iframe container used for JS injection so it doesn't add blank space */
@@ -585,15 +594,17 @@ def render_navbar(active_step, model_name="Groq API"):
             tabs_html += f'<span class="nav-tab"><span class="step-num">{step_num}</span>{label}</span>'
             
     navbar_html = f"""
-    <div class="nav-container">
-        <div class="nav-left">
-            <span class="nav-logo">GDSS</span>
-        </div>
-        <div class="nav-center">
-            {tabs_html}
-        </div>
-        <div class="nav-right">
-            <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{model_name}</span>
+    <div class="nav-wrapper">
+        <div class="nav-container">
+            <div class="nav-left">
+                <span class="nav-logo">GDSS</span>
+            </div>
+            <div class="nav-center">
+                {tabs_html}
+            </div>
+            <div class="nav-right">
+                <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{model_name}</span>
+            </div>
         </div>
     </div>
     """
