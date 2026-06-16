@@ -95,7 +95,22 @@ st.markdown("""
     }
 
     /* Input Fields & Widgets */
-    div[data-testid="stTextInput"] input,
+    div[data-testid="stTextInput"] [data-baseweb="input"] {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 10px !important;
+        height: 42px !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+    div[data-testid="stTextInput"] input {
+        border: none !important;
+        background-color: transparent !important;
+        color: #0f172a !important;
+        font-family: 'Outfit', sans-serif !important;
+        height: 100% !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
     div[data-testid="stSelectbox"] [data-baseweb="select"] {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
@@ -114,11 +129,11 @@ st.markdown("""
     div[data-testid="stSelectbox"] [data-baseweb="select"] * {
         color: #0f172a !important;
     }
-    div[data-testid="stTextInput"] input:hover,
+    div[data-testid="stTextInput"] [data-baseweb="input"]:hover,
     div[data-testid="stSelectbox"] [data-baseweb="select"]:hover {
         border-color: #94a3b8 !important;
     }
-    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextInput"] [data-baseweb="input"]:focus-within,
     div[data-testid="stSelectbox"] [data-baseweb="select"]:focus {
         border-color: #0f172a !important;
         box-shadow: 0 0 0 1px #0f172a !important;
