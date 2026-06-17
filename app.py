@@ -824,6 +824,10 @@ if "results" not in st.session_state:
     st.session_state.results = []
 if "edited_df" not in st.session_state:
     st.session_state.edited_df = None
+if "api_key" not in st.session_state:
+    st.session_state.api_key = ""
+if "engine" not in st.session_state:
+    st.session_state.engine = "Groq API"
 
 
 # ─────────────────────────────────────────────
@@ -834,14 +838,21 @@ with st.expander("⚙️ Model Configuration", expanded=False):
     with col1:
         engine = st.selectbox(
             "Choose model",
-            ["Groq API", "OpenRouter API"]
+            ["Groq API", "OpenRouter API"],
+            index=["Groq API", "OpenRouter API"].index(st.session_state.engine)
+            if st.session_state.engine in ["Groq API", "OpenRouter API"] else 0
         )
+        st.session_state.engine = engine
     with col2:
-        api_key = ""
         if engine == "Groq API":
-            api_key = st.text_input("Groq API Key", type="password", placeholder="gsk_...", value=GROQ_API_KEY)
+            api_key = st.text_input("Groq API Key", type="password", placeholder="gsk_...", value=st.session_state.api_key or GROQ_API_KEY)
         elif engine == "OpenRouter API":
-            api_key = st.text_input("OpenRouter API Key", type="password", placeholder="sk-or-v1-...", value=OPENROUTER_API_KEY)
+            api_key = st.text_input("OpenRouter API Key", type="password", placeholder="sk-or-v1-...", value=st.session_state.api_key or OPENROUTER_API_KEY)
+        else:
+            api_key = ""
+        # Persist the key so it survives reruns during sleep intervals
+        if api_key:
+            st.session_state.api_key = api_key
 
 # ─────────────────────────────────────────────
 # STATE DETECTION FOR TABS
@@ -958,10 +969,13 @@ if uploaded_files:
                 start = time.time()
                 try:
                     b64 = preprocess_image(f, max_size=(1024, 1024))
-                    if engine == "Groq API" and api_key:
-                        record = extract_via_groq(b64, api_key)
-                    elif engine == "OpenRouter API" and api_key:
-                        record = extract_via_openrouter(b64, api_key)
+                    # Always read from session_state so the key survives sleep-induced reruns
+                    _engine  = st.session_state.get("engine", engine)
+                    _api_key = st.session_state.get("api_key", api_key)
+                    if _engine == "Groq API" and _api_key:
+                        record = extract_via_groq(b64, _api_key)
+                    elif _engine == "OpenRouter API" and _api_key:
+                        record = extract_via_openrouter(b64, _api_key)
                     else:
                         raise ValueError("No valid engine selected or API key missing.")
 
@@ -971,10 +985,13 @@ if uploaded_files:
                 except Exception as e:
                     timer_slot.warning(f"⚠️ Could not extract from `{f.name}`: {e}")
 
-                # Enforce a 6-second sleep between each API call in the queue
+                # Enforce minimum gap between API calls — only sleep what's left of the window
                 if idx < total_images - 1:
-                    status.markdown(f"⏳ Sleeping 6 seconds before next API call...")
-                    time.sleep(6)
+                    elapsed_total = time.time() - start
+                    remaining = GROQ_DELAY_SEC - elapsed_total
+                    if remaining > 0:
+                        status.markdown(f"⏳ Pacing... waiting {remaining:.1f}s before next call")
+                        time.sleep(remaining)
 
                 processed_count_by_product[product_id] += 1
                 if processed_count_by_product[product_id] == len(groups[product_id]):
