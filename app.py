@@ -1047,8 +1047,8 @@ def preprocess_image(image_file, max_size=(1024, 1024)):
     return base64.standard_b64encode(buffer.read()).decode("utf-8")
 
 
-GROQ_API_KEY       = ""
-OPENROUTER_API_KEY = ""
+GROQ_API_KEY       = st.secrets.get("GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
+OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
 GROQ_DELAY_SEC     = 4                       # Minimum seconds between Groq/OpenRouter requests
 
 

@@ -25,9 +25,9 @@ import io
 # CONFIGURATION — swap extraction engine here
 # ─────────────────────────────────────────────
 EXTRACTION_ENGINE = "groq"    # Options: "groq", "openrouter"
-GROQ_API_KEY  = ""  # Groq API key
+GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")  # Groq API key
 GROQ_DELAY_SEC = 5            # Minimum seconds between Groq requests
-OPENROUTER_API_KEY = ""  # OpenRouter API key
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")  # OpenRouter API key
 IMAGE_FOLDER = "./images"     # Folder containing your product images
 OUTPUT_FILE  = "./IMDB_predictions.xlsx"
 MAX_IMAGE_SIZE = (1024, 1024) # Resize images larger than this before sending
