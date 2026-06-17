@@ -824,8 +824,10 @@ if "results" not in st.session_state:
     st.session_state.results = []
 if "edited_df" not in st.session_state:
     st.session_state.edited_df = None
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
+if "groq_api_key" not in st.session_state:
+    st.session_state.groq_api_key = GROQ_API_KEY
+if "openrouter_api_key" not in st.session_state:
+    st.session_state.openrouter_api_key = OPENROUTER_API_KEY
 if "engine" not in st.session_state:
     st.session_state.engine = "Groq API"
 
@@ -839,20 +841,29 @@ with st.expander("⚙️ Model Configuration", expanded=False):
         engine = st.selectbox(
             "Choose model",
             ["Groq API", "OpenRouter API"],
-            index=["Groq API", "OpenRouter API"].index(st.session_state.engine)
-            if st.session_state.engine in ["Groq API", "OpenRouter API"] else 0
+            key="engine"
         )
-        st.session_state.engine = engine
     with col2:
         if engine == "Groq API":
-            api_key = st.text_input("Groq API Key", type="password", placeholder="gsk_...", value=st.session_state.api_key or GROQ_API_KEY)
+            st.text_input(
+                "Groq API Key",
+                type="password",
+                placeholder="gsk_...",
+                key="groq_api_key"
+            )
         elif engine == "OpenRouter API":
-            api_key = st.text_input("OpenRouter API Key", type="password", placeholder="sk-or-v1-...", value=st.session_state.api_key or OPENROUTER_API_KEY)
-        else:
-            api_key = ""
-        # Persist the key so it survives reruns during sleep intervals
-        if api_key:
-            st.session_state.api_key = api_key
+            st.text_input(
+                "OpenRouter API Key",
+                type="password",
+                placeholder="sk-or-v1-...",
+                key="openrouter_api_key"
+            )
+
+# Resolve the active api_key from the correct session state slot
+if st.session_state.engine == "Groq API":
+    api_key = st.session_state.groq_api_key
+else:
+    api_key = st.session_state.openrouter_api_key
 
 # ─────────────────────────────────────────────
 # STATE DETECTION FOR TABS
@@ -969,15 +980,20 @@ if uploaded_files:
                 start = time.time()
                 try:
                     b64 = preprocess_image(f, max_size=(1024, 1024))
-                    # Always read from session_state so the key survives sleep-induced reruns
-                    _engine  = st.session_state.get("engine", engine)
-                    _api_key = st.session_state.get("api_key", api_key)
-                    if _engine == "Groq API" and _api_key:
+                    # Read keys directly from session_state (persists across reruns)
+                    _engine = st.session_state.get("engine", engine)
+                    if _engine == "Groq API":
+                        _api_key = st.session_state.get("groq_api_key", "")
+                        if not _api_key:
+                            raise ValueError("Groq API key is missing. Please enter it in Model Configuration.")
                         record = extract_via_groq(b64, _api_key)
-                    elif _engine == "OpenRouter API" and _api_key:
+                    elif _engine == "OpenRouter API":
+                        _api_key = st.session_state.get("openrouter_api_key", "")
+                        if not _api_key:
+                            raise ValueError("OpenRouter API key is missing. Please enter it in Model Configuration.")
                         record = extract_via_openrouter(b64, _api_key)
                     else:
-                        raise ValueError("No valid engine selected or API key missing.")
+                        raise ValueError("No valid engine selected.")
 
                     elapsed = time.time() - start
                     timer_slot.success(f"✅ `{f.name}` done in {elapsed:.1f}s")
