@@ -5,8 +5,14 @@ Streamlit UI
 """
 
 import streamlit as st
+from supabase import create_client
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
 import streamlit.components.v1 as components
 import json
+
 import re
 import base64
 import requests
@@ -695,7 +701,7 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
                 <span class="nav-logo">GDSS</span>
                 <div class="nav-divider" style="margin-left:1rem;"></div>
                 <a href="?view=pipeline" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">🏭 Pipeline</a>
-                <a href="?view=database" class="nav-view-link {database_active}">🗄️ Item Master Database</a>
+                <a href="?view=database" class="nav-view-link {database_active}">📊 Item Master Database</a>
             </div>
             <div class="nav-center" style="{'display:none' if current_view=='database' else ''}">
                 {tabs_html}
@@ -749,94 +755,108 @@ TRIGGER = 'Extract the product data from this image and return only the JSON obj
 # ─────────────────────────────────────────────
 # SUPABASE HELPERS
 # ─────────────────────────────────────────────
-def supabase_upsert_product(url, key, imdb_row):
+def get_supabase_client():
+    url = st.session_state.get("supabase_url", SUPABASE_URL)
+    key = st.session_state.get("supabase_key", SUPABASE_KEY)
+    if url == SUPABASE_URL and key == SUPABASE_KEY:
+        return supabase_client
+    if url and key:
+        try:
+            return create_client(url, key)
+        except Exception:
+            return None
+    return None
+
+
+def supabase_upsert_product(imdb_row):
     """
-    Upsert a product into the Supabase item_master table.
-    If barcode matches an existing record, increments scan_count and updates fields.
-    If no barcode, falls back to item_name match.
-    Returns (success: bool, message: str).
+    Upsert a product into the Supabase imdb_products table.
+    Before inserting check if exists by barcode (if not empty) or by brand+weight+packaging_type.
+    If exists increment scan_count and set is_duplicate=true and merge empty fields.
+    If not exists insert as new record.
     """
-    if not url or not key:
+    client = get_supabase_client()
+    if not client:
         return False, "Supabase credentials not configured."
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
+    
     barcode = imdb_row.get("BARCODE", "").strip()
     item_name = imdb_row.get("ITEM NAME", "").strip()
-
-    # Build lookup filter: prefer barcode, fallback to item_name
-    if barcode:
-        lookup_url = f"{url}/rest/v1/item_master?barcode=eq.{barcode}&select=id,scan_count"
-    elif item_name:
-        import urllib.parse
-        lookup_url = f"{url}/rest/v1/item_master?item_name=eq.{urllib.parse.quote(item_name)}&select=id,scan_count"
-    else:
-        return False, "Product has no barcode or item name to match."
-
+    brand = imdb_row.get("BRAND", "").strip()
+    weight = imdb_row.get("WEIGHT", "").strip()
+    pkg = imdb_row.get("PACKAGING TYPE", "").strip()
+    
+    db_fields = {
+        "item_name":        item_name,
+        "barcode":          barcode,
+        "manufacturer":     imdb_row.get("MANUFACTURER", "").strip(),
+        "brand":            brand,
+        "weight":           weight,
+        "packaging_type":   pkg,
+        "country":          imdb_row.get("COUNTRY", "").strip(),
+        "variant":          imdb_row.get("VARIANT", "").strip(),
+        "type":             imdb_row.get("TYPE", "").strip(),
+        "fragrance_flavor": imdb_row.get("FRAGRANCE FLAVOR", "").strip(),
+        "promotion":        imdb_row.get("PROMOTION", "").strip(),
+        "addons":           imdb_row.get("ADDONS", "").strip(),
+        "tagline":          imdb_row.get("TAGLINE", "").strip(),
+    }
+    
+    existing_records = None
     try:
-        existing = requests.get(lookup_url, headers=headers, timeout=15)
-        existing.raise_for_status()
-        rows = existing.json()
-
-        record = {
-            "item_name":        imdb_row.get("ITEM NAME", ""),
-            "barcode":          barcode,
-            "manufacturer":     imdb_row.get("MANUFACTURER", ""),
-            "brand":            imdb_row.get("BRAND", ""),
-            "weight":           imdb_row.get("WEIGHT", ""),
-            "packaging_type":   imdb_row.get("PACKAGING TYPE", ""),
-            "country":          imdb_row.get("COUNTRY", ""),
-            "variant":          imdb_row.get("VARIANT", ""),
-            "type":             imdb_row.get("TYPE", ""),
-            "fragrance_flavor": imdb_row.get("FRAGRANCE FLAVOR", ""),
-            "promotion":        imdb_row.get("PROMOTION", ""),
-            "addons":           imdb_row.get("ADDONS", ""),
-            "tagline":          imdb_row.get("TAGLINE", ""),
-            "last_updated":     "now()",
-        }
-
-        if rows:
-            existing_id = rows[0]["id"]
-            existing_scan_count = rows[0].get("scan_count", 1)
-            record["scan_count"] = existing_scan_count + 1
-            patch_url = f"{url}/rest/v1/item_master?id=eq.{existing_id}"
-            resp = requests.patch(patch_url, json=record, headers=headers, timeout=15)
-            resp.raise_for_status()
-            return True, f"Updated (scan #{record['scan_count']})"
+        if barcode:
+            resp = client.table("imdb_products").select("*").eq("barcode", barcode).execute()
+            existing_records = resp.data
         else:
-            record["scan_count"] = 1
-            post_url = f"{url}/rest/v1/item_master"
-            resp = requests.post(post_url, json=record, headers=headers, timeout=15)
-            resp.raise_for_status()
-            return True, "Inserted as new entry"
+            if brand or weight or pkg:
+                resp = client.table("imdb_products").select("*").eq("brand", brand).eq("weight", weight).eq("packaging_type", pkg).execute()
+                existing_records = resp.data
+                
+        if existing_records and len(existing_records) > 0:
+            existing = existing_records[0]
+            scan_count = int(existing.get("scan_count") or 1) + 1
+            
+            # Merge empty fields: if existing value is empty/null, use new value
+            updated_fields = {}
+            for key, val in db_fields.items():
+                existing_val = existing.get(key)
+                if existing_val is None or str(existing_val).strip() == "":
+                    updated_fields[key] = val
+                else:
+                    updated_fields[key] = existing_val
+            
+            updated_fields["scan_count"] = scan_count
+            updated_fields["is_duplicate"] = True
+            import datetime
+            updated_fields["last_updated"] = datetime.datetime.utcnow().isoformat()
+            
+            client.table("imdb_products").update(updated_fields).eq("id", existing["id"]).execute()
+            return True, f"Updated (scan #{scan_count})"
+        else:
+            new_record = db_fields.copy()
+            new_record["scan_count"] = 1
+            new_record["is_duplicate"] = False
+            import datetime
+            new_record["last_updated"] = datetime.datetime.utcnow().isoformat()
+            
+            client.table("imdb_products").insert(new_record).execute()
+            return True, "Inserted as new record"
     except Exception as e:
         return False, str(e)
 
 
-def supabase_get_products(url, key, search_query=""):
+def supabase_get_products(search_query=""):
     """
-    Fetch all products from Supabase item_master, optionally filtered by brand or item_name.
-    Returns (rows: list[dict], error: str|None).
+    Fetch all products from Supabase imdb_products, optionally filtered by brand or item_name.
     """
-    if not url or not key:
+    client = get_supabase_client()
+    if not client:
         return [], "Supabase credentials not configured."
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-    }
     try:
-        params = "select=*&order=last_updated.desc"
+        query = client.table("imdb_products").select("*").order("last_updated", desc=True)
         if search_query:
-            import urllib.parse
-            q = urllib.parse.quote(search_query)
-            params += f"&or=(brand.ilike.*{q}*,item_name.ilike.*{q}*)"
-        resp = requests.get(f"{url}/rest/v1/item_master?{params}", headers=headers, timeout=15)
-        resp.raise_for_status()
-        return resp.json(), None
+            query = query.or_(f"brand.ilike.*{search_query}*,item_name.ilike.*{search_query}*")
+        resp = query.execute()
+        return resp.data, None
     except Exception as e:
         return [], str(e)
 
@@ -1119,14 +1139,12 @@ with navbar_placeholder.container():
 # VIEW: ITEM MASTER DATABASE
 # ═══════════════════════════════════════════════
 if current_view == "database":
-    st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>🗄️ Item Master Database</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>📊 Item Master Database</h2>", unsafe_allow_html=True)
     st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Browse, search, and manage all previously extracted products stored in Supabase.</p>", unsafe_allow_html=True)
 
-    _sb_url = st.session_state.get("supabase_url", "")
-    _sb_key = st.session_state.get("supabase_key", "")
-
-    if not _sb_url or not _sb_key:
-        st.warning("⚙️ Please enter your **Supabase URL** and **API Key** in the **⚙️ Model Configuration** expander above to enable database features.")
+    client = get_supabase_client()
+    if not client:
+        st.warning("⚙️ Please configure your **Supabase URL** and **API Key** in the **⚙️ Model Configuration** expander above or in Streamlit secrets to enable database features.")
     else:
         # ── Search bar ──────────────────────────────────────────────────
         col_search, col_refresh = st.columns([3, 1])
@@ -1140,26 +1158,30 @@ if current_view == "database":
             do_refresh = st.button("🔄 Refresh", use_container_width=True)
 
         # ── Fetch data ──────────────────────────────────────────────────
-        rows, fetch_err = supabase_get_products(_sb_url, _sb_key, search_query)
+        rows, fetch_err = supabase_get_products(search_query)
 
         if fetch_err:
             st.error(f"❌ Could not load data from Supabase: {fetch_err}")
         elif not rows:
             st.info("📭 No products found. Run the pipeline and sync results to populate the database.")
+            st.markdown("---")
+            if st.button("🗑️ Clear Database (Force delete all)", type="secondary", use_container_width=True):
+                try:
+                    client.table("imdb_products").delete().neq("item_name", "NON_EXISTENT_VAL_THAT_WILL_NEVER_EXIST").execute()
+                    st.success("✅ Database cleared successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error clearing database: {e}")
         else:
-            # ── Compute duplicate flag ──────────────────────────────────
-            from collections import Counter as _Counter
-            barcode_counts = _Counter(r.get("barcode", "") for r in rows if r.get("barcode", ""))
-            
             # ── Summary chips ───────────────────────────────────────────
             total_products = len(rows)
             total_scans = sum(r.get("scan_count", 1) for r in rows)
-            total_duplicates = sum(1 for r in rows if barcode_counts.get(r.get("barcode", ""), 0) > 1)
+            total_duplicates = sum(1 for r in rows if r.get("is_duplicate"))
             st.markdown(
                 f'<div style="margin-bottom:1rem;">'
                 f'<span class="db-stat-chip">📦 {total_products} Products</span>'
                 f'<span class="db-stat-chip">📸 {total_scans} Total Scans</span>'
-                f'<span class="db-stat-chip">⚠️ {total_duplicates} Duplicate Barcodes</span>'
+                f'<span class="db-stat-chip">⚠️ {total_duplicates} Duplicate Products</span>'
                 f'</div>',
                 unsafe_allow_html=True
             )
@@ -1168,7 +1190,7 @@ if current_view == "database":
             db_rows = []
             for r in rows:
                 bc = r.get("barcode", "")
-                is_dup = barcode_counts.get(bc, 0) > 1 if bc else False
+                is_dup = bool(r.get("is_duplicate", False))
                 last_upd = r.get("last_updated", "")
                 if last_upd and "T" in last_upd:
                     last_upd = last_upd.replace("T", " ")[:16]
@@ -1181,21 +1203,38 @@ if current_view == "database":
                     "Country":         r.get("country", ""),
                     "Packaging":       r.get("packaging_type", ""),
                     "Scan Count":      r.get("scan_count", 1),
-                    "Duplicate Flag":  "Yes" if is_dup else "No",
+                    "is_duplicate":    "Yes" if is_dup else "No",
                     "Last Updated":    last_upd,
                 })
 
             db_df = pd.DataFrame(db_rows)
+            
+            # Highlight duplicate rows in red (light red background and dark red text)
+            def highlight_rows(row):
+                is_duplicate = row["is_duplicate"] == "Yes"
+                return ['background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;' if is_duplicate else '' for _ in row]
+            
+            styled_df = db_df.style.apply(highlight_rows, axis=1)
+            
             st.dataframe(
-                db_df,
+                styled_df,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "Scan Count":   st.column_config.NumberColumn("Scan Count", format="%d 📸"),
-                    "Duplicate Flag": st.column_config.TextColumn("Duplicate Flag"),
+                    "is_duplicate": st.column_config.TextColumn("is_duplicate"),
                     "Last Updated": st.column_config.TextColumn("Last Updated"),
                 }
             )
+
+            st.markdown("---")
+            if st.button("🗑️ Clear Database", type="secondary", use_container_width=True):
+                try:
+                    client.table("imdb_products").delete().neq("item_name", "NON_EXISTENT_VAL_THAT_WILL_NEVER_EXIST").execute()
+                    st.success("✅ Database cleared successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error clearing database: {e}")
 
     st.stop()   # Do not render pipeline below
 
@@ -1443,14 +1482,13 @@ if all_files:
         st.markdown('<div class="success-banner">✅ Pipeline complete!</div>', unsafe_allow_html=True)
 
         # ── Auto-sync to Supabase ─────────────────────────────────────
-        _sb_url = st.session_state.get("supabase_url", "")
-        _sb_key = st.session_state.get("supabase_key", "")
-        if _sb_url and _sb_key:
+        client = get_supabase_client()
+        if client:
             sync_status = st.empty()
             sync_status.info("⏳ Syncing results to Supabase...")
             sync_errors = []
             for imdb_row in results:
-                ok, msg = supabase_upsert_product(_sb_url, _sb_key, imdb_row)
+                ok, msg = supabase_upsert_product(imdb_row)
                 if not ok:
                     sync_errors.append(msg)
             if sync_errors:
@@ -1515,16 +1553,15 @@ if st.session_state.results:
         )
 
     # ── Manual Supabase Sync ─────────────────────────────────────────
-    _sb_url = st.session_state.get("supabase_url", "")
-    _sb_key = st.session_state.get("supabase_key", "")
-    if _sb_url and _sb_key:
+    client = get_supabase_client()
+    if client:
         st.markdown("---")
         if st.button("☁️ Sync Edits to Supabase", use_container_width=True):
             rows_to_sync = edited.to_dict("records")
             sync_errors = []
             with st.spinner(f"Syncing {len(rows_to_sync)} product(s) to Supabase..."):
                 for row in rows_to_sync:
-                    ok, msg = supabase_upsert_product(_sb_url, _sb_key, row)
+                    ok, msg = supabase_upsert_product(row)
                     if not ok:
                         sync_errors.append(msg)
             if sync_errors:

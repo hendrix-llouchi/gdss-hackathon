@@ -3,3 +3,5 @@ requests
 Pillow
 openpyxl
 pandas
+supabase
+
