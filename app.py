@@ -798,12 +798,6 @@ st.markdown("""
         }
     }
 
-    /* Hide hidden transition buttons */
-    div:has(> .hidden-btn-marker) + div,
-    div:has(> .hidden-btn-marker) + div + div {
-        display: none !important;
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -824,12 +818,12 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
                 </div>
                 <div class="nav-divider"></div>
                 <div class="nav-left">
-                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_pipeline')" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
+                    <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
                         <span>🏭</span>
                         <span class="nav-text-full">Pipeline</span>
                         <span class="nav-text-mobile">Pipeline</span>
                     </a>
-                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_database')" class="nav-view-link {database_active}">
+                    <a href="?view=database" target="_self" class="nav-view-link {database_active}">
                         <span>📊</span>
                         <span class="nav-text-full">Item Master Database</span>
                         <span class="nav-text-mobile">Database</span>
@@ -841,22 +835,6 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             </div>
         </div>
     </div>
-    
-    <script>
-    function clickHiddenButton(text) {{
-        let doc = document;
-        let btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
-        if (!btn && window.parent) {{
-            doc = window.parent.document;
-            btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
-        }}
-        if (btn) {{
-            btn.click();
-        }} else {{
-            console.warn('Button not found for: ' + text);
-        }}
-    }}
-    </script>
     """
     st.markdown(navbar_html, unsafe_allow_html=True)
 
@@ -1284,14 +1262,6 @@ else:
 # ─────────────────────────────────────────────
 # VIEW ROUTING (Pipeline vs Item Master Database)
 # ─────────────────────────────────────────────
-st.markdown('<div class="hidden-btn-marker"></div>', unsafe_allow_html=True)
-if st.button("switch_to_pipeline", key="btn_pipeline_trigger"):
-    st.query_params["view"] = "pipeline"
-    st.rerun()
-if st.button("switch_to_database", key="btn_database_trigger"):
-    st.query_params["view"] = "database"
-    st.rerun()
-
 current_view = st.query_params.get("view", "pipeline")
 
 # ─────────────────────────────────────────────
@@ -1321,9 +1291,7 @@ if current_view == "database":
     st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Browse, search, and manage all previously extracted products stored in Supabase.</p>", unsafe_allow_html=True)
 
     client = get_supabase_client()
-    if not client:
-        st.warning("⚙️ Please configure your **Supabase URL** and **API Key** in the **⚙️ Model Configuration** expander above or in Streamlit secrets to enable database features.")
-    else:
+    if client:
         # ── Search bar ──────────────────────────────────────────────────
         col_search, col_refresh = st.columns([3, 1])
         with col_search:
