@@ -6,8 +6,8 @@ Streamlit UI
 
 import streamlit as st
 from supabase import create_client
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "") or os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "") or os.environ.get("SUPABASE_KEY", "")
 supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 import streamlit.components.v1 as components
@@ -1272,50 +1272,51 @@ with navbar_placeholder.container():
 # ─────────────────────────────────────────────
 # ENGINE CONFIG (MOVED FROM SIDEBAR)
 # ─────────────────────────────────────────────
-with st.expander("⚙️ Model Configuration", expanded=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        engine = st.selectbox(
-            "Choose model",
-            ["Groq API", "OpenRouter API"],
-            key="engine"
-        )
-    with col2:
-        if engine == "Groq API":
-            st.text_input(
-                "Groq API Key",
-                type="password",
-                placeholder="gsk_...",
-                key="groq_api_key"
+if current_view == "pipeline":
+    with st.expander("⚙️ Model Configuration", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.session_state.engine = st.selectbox(
+                "Choose model",
+                ["Groq API", "OpenRouter API"],
+                index=0 if st.session_state.get("engine", "Groq API") == "Groq API" else 1
             )
-        elif engine == "OpenRouter API":
-            st.text_input(
-                "OpenRouter API Key",
-                type="password",
-                placeholder="sk-or-v1-...",
-                key="openrouter_api_key"
+        with col2:
+            if st.session_state.engine == "Groq API":
+                st.session_state.groq_api_key = st.text_input(
+                    "Groq API Key",
+                    type="password",
+                    placeholder="gsk_...",
+                    value=st.session_state.get("groq_api_key", "")
+                )
+            elif st.session_state.engine == "OpenRouter API":
+                st.session_state.openrouter_api_key = st.text_input(
+                    "OpenRouter API Key",
+                    type="password",
+                    placeholder="sk-or-v1-...",
+                    value=st.session_state.get("openrouter_api_key", "")
+                )
+        st.markdown("---")
+        col3, col4 = st.columns(2)
+        with col3:
+            st.session_state.supabase_url = st.text_input(
+                "Supabase URL",
+                placeholder="https://xxxx.supabase.co",
+                value=st.session_state.get("supabase_url", "")
             )
-    st.markdown("---")
-    col3, col4 = st.columns(2)
-    with col3:
-        st.text_input(
-            "Supabase URL",
-            placeholder="https://xxxx.supabase.co",
-            key="supabase_url"
-        )
-    with col4:
-        st.text_input(
-            "Supabase API Key",
-            type="password",
-            placeholder="your-supabase-anon-key",
-            key="supabase_key"
-        )
+        with col4:
+            st.session_state.supabase_key = st.text_input(
+                "Supabase API Key",
+                type="password",
+                placeholder="your-supabase-anon-key",
+                value=st.session_state.get("supabase_key", "")
+            )
 
 # Resolve the active api_key from the correct session state slot
 if st.session_state.engine == "Groq API":
-    api_key = st.session_state.groq_api_key
+    api_key = st.session_state.get("groq_api_key", "")
 else:
-    api_key = st.session_state.openrouter_api_key
+    api_key = st.session_state.get("openrouter_api_key", "")
 
 # ─────────────────────────────────────────────
 # ═══════════════════════════════════════════════
