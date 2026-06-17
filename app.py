@@ -842,51 +842,50 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
     js_code = f"""
     <script>
     try {{
-        const parentWin = window.parent;
-        
-        parentWin.clickHiddenButton = function(text) {{
-            try {{
-                const btn = Array.from(parentWin.document.querySelectorAll('button')).find(el => {{
-                    return (el.textContent || '').includes(text);
-                }});
-                if (btn) {{
-                    btn.click();
-                }} else {{
-                    console.warn('Button not found:', text);
-                }}
-            }} catch (e) {{
-                console.error('Error in clickHiddenButton:', e);
-            }}
-        }};
-        
-        parentWin.hideTransitionButtons = function() {{
-            try {{
-                const btns = Array.from(parentWin.document.querySelectorAll('button'));
-                btns.forEach(btn => {{
-                    const txt = btn.textContent || '';
-                    if (txt.includes('switch_to_pipeline') || txt.includes('switch_to_database')) {{
-                        const container = btn.closest('div[data-testid="stElementContainer"]') || 
-                                          btn.closest('div[data-testid="element-container"]') || 
-                                          btn.parentElement;
-                        if (container) {{
-                            container.style.setProperty('position', 'fixed', 'important');
-                            container.style.setProperty('left', '-9999px', 'important');
-                            container.style.setProperty('top', '-9999px', 'important');
-                            container.style.setProperty('width', '1px', 'important');
-                            container.style.setProperty('height', '1px', 'important');
-                            container.style.setProperty('overflow', 'hidden', 'important');
-                        }}
+        window.parent.eval(`
+            window.clickHiddenButton = function(text) {{
+                try {{
+                    const btn = Array.from(document.querySelectorAll('button')).find(el => {{
+                        return (el.textContent || '').includes(text);
+                    }});
+                    if (btn) {{
+                        btn.click();
+                    }} else {{
+                        console.warn('Button not found:', text);
                     }}
-                }});
-            }} catch (e) {{
-                console.error('Error in hideTransitionButtons:', e);
+                }} catch (e) {{
+                    console.error('Error in clickHiddenButton:', e);
+                }}
+            }};
+            
+            window.hideTransitionButtons = function() {{
+                try {{
+                    const btns = Array.from(document.querySelectorAll('button'));
+                    btns.forEach(btn => {{
+                        const txt = btn.textContent || '';
+                        if (txt.includes('switch_to_pipeline') || txt.includes('switch_to_database')) {{
+                            const container = btn.closest('div[data-testid="stElementContainer"]') || 
+                                              btn.closest('div[data-testid="element-container"]') || 
+                                              btn.parentElement;
+                            if (container) {{
+                                container.style.setProperty('position', 'fixed', 'important');
+                                container.style.setProperty('left', '-9999px', 'important');
+                                container.style.setProperty('top', '-9999px', 'important');
+                                container.style.setProperty('width', '1px', 'important');
+                                container.style.setProperty('height', '1px', 'important');
+                                container.style.setProperty('overflow', 'hidden', 'important');
+                            }}
+                        }}
+                    }});
+                }} catch (e) {{
+                    console.error('Error in hideTransitionButtons:', e);
+                }}
+            }};
+            
+            if (!window.hideTransitionButtonsInterval) {{
+                window.hideTransitionButtonsInterval = setInterval(window.hideTransitionButtons, 100);
             }}
-        }};
-        
-        // Hide transition buttons immediately and periodically
-        parentWin.hideTransitionButtons();
-        setInterval(parentWin.hideTransitionButtons, 100);
-        
+        `);
     }} catch (globalErr) {{
         console.error('Error in JS injection iframe:', globalErr);
     }}
