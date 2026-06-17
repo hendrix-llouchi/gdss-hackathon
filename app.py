@@ -1599,13 +1599,13 @@ if all_files:
                 try:
                     b64 = preprocess_image(f, max_size=(1024, 1024))
                     # Read keys directly from session_state (persists across reruns)
-                    _engine = st.session_state.get("engine", engine)
-                    if _engine == "Groq API":
+                    engine = st.session_state.get("engine", "Groq API")
+                    if engine == "Groq API":
                         _api_key = st.session_state.get("groq_api_key", "")
                         if not _api_key:
                             raise ValueError("Groq API key is missing. Please enter it in Model Configuration.")
                         record = extract_via_groq(b64, _api_key)
-                    elif _engine == "OpenRouter API":
+                    elif engine == "OpenRouter API":
                         _api_key = st.session_state.get("openrouter_api_key", "")
                         if not _api_key:
                             raise ValueError("OpenRouter API key is missing. Please enter it in Model Configuration.")
