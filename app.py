@@ -512,6 +512,10 @@ st.markdown("""
         transition: all 0.2s ease !important;
         width: 100% !important;
     }
+    /* Force white on all nested label elements Streamlit injects inside buttons */
+    div.stButton > button *, div.stDownloadButton > button * {
+        color: #ffffff !important;
+    }
     div.stButton > button:hover, div.stDownloadButton > button:hover {
         background-color: #222222 !important;
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
@@ -520,6 +524,7 @@ st.markdown("""
     div.stButton > button:active, div.stDownloadButton > button:active {
         transform: translateY(0px) !important;
     }
+
 
     /* File Uploader dashed zone */
     div[data-testid="stFileUploader"] section {
