@@ -798,6 +798,12 @@ st.markdown("""
         }
     }
 
+    /* Hide hidden transition buttons */
+    div:has(> .hidden-btn-marker) + div,
+    div:has(> .hidden-btn-marker) + div + div {
+        display: none !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -818,12 +824,12 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
                 </div>
                 <div class="nav-divider"></div>
                 <div class="nav-left">
-                    <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
+                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_pipeline')" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
                         <span>🏭</span>
                         <span class="nav-text-full">Pipeline</span>
                         <span class="nav-text-mobile">Pipeline</span>
                     </a>
-                    <a href="?view=database" target="_self" class="nav-view-link {database_active}">
+                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_database')" class="nav-view-link {database_active}">
                         <span>📊</span>
                         <span class="nav-text-full">Item Master Database</span>
                         <span class="nav-text-mobile">Database</span>
@@ -835,6 +841,22 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             </div>
         </div>
     </div>
+    
+    <script>
+    function clickHiddenButton(text) {{
+        let doc = document;
+        let btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
+        if (!btn && window.parent) {{
+            doc = window.parent.document;
+            btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
+        }}
+        if (btn) {{
+            btn.click();
+        }} else {{
+            console.warn('Button not found for: ' + text);
+        }}
+    }}
+    </script>
     """
     st.markdown(navbar_html, unsafe_allow_html=True)
 
@@ -955,13 +977,9 @@ def supabase_upsert_product(imdb_row):
     
     existing_records = None
     try:
-        if barcode:
-            resp = client.table("imdb_products").select("*").eq("barcode", barcode).execute()
+        if item_name:
+            resp = client.table("imdb_products").select("*").eq("item_name", item_name).execute()
             existing_records = resp.data
-        else:
-            if brand or weight or pkg:
-                resp = client.table("imdb_products").select("*").eq("brand", brand).eq("weight", weight).eq("packaging_type", pkg).execute()
-                existing_records = resp.data
                 
         if existing_records and len(existing_records) > 0:
             existing = existing_records[0]
@@ -1266,6 +1284,14 @@ else:
 # ─────────────────────────────────────────────
 # VIEW ROUTING (Pipeline vs Item Master Database)
 # ─────────────────────────────────────────────
+st.markdown('<div class="hidden-btn-marker"></div>', unsafe_allow_html=True)
+if st.button("switch_to_pipeline", key="btn_pipeline_trigger"):
+    st.query_params["view"] = "pipeline"
+    st.rerun()
+if st.button("switch_to_database", key="btn_database_trigger"):
+    st.query_params["view"] = "database"
+    st.rerun()
+
 current_view = st.query_params.get("view", "pipeline")
 
 # ─────────────────────────────────────────────
@@ -1651,14 +1677,21 @@ if all_files:
             sync_status = st.empty()
             sync_status.info("⏳ Syncing results to Supabase...")
             sync_errors = []
+            inserts_count = 0
+            updates_count = 0
             for imdb_row in results:
                 ok, msg = supabase_upsert_product(imdb_row)
                 if not ok:
                     sync_errors.append(msg)
+                else:
+                    if "Updated" in msg:
+                        updates_count += 1
+                    else:
+                        inserts_count += 1
             if sync_errors:
                 sync_status.warning(f"⚠️ Supabase sync had {len(sync_errors)} error(s): {sync_errors[0]}")
             else:
-                sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase!")
+                sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase ({inserts_count} new, {updates_count} duplicate/updated)!")
 
         # Update navbar and stepper to "Export/Preview" (active_step = 5)
         with navbar_placeholder.container():
@@ -1725,14 +1758,21 @@ if st.session_state.results:
         if st.button("☁️ Sync Edits to Supabase", use_container_width=True):
             rows_to_sync = edited.to_dict("records")
             sync_errors = []
+            inserts_count = 0
+            updates_count = 0
             with st.spinner(f"Syncing {len(rows_to_sync)} product(s) to Supabase..."):
                 for row in rows_to_sync:
                     ok, msg = supabase_upsert_product(row)
                     if not ok:
                         sync_errors.append(msg)
+                    else:
+                        if "Updated" in msg:
+                            updates_count += 1
+                        else:
+                            inserts_count += 1
             if sync_errors:
                 st.warning(f"⚠️ {len(sync_errors)} error(s) during sync: {sync_errors[0]}")
             else:
-                st.success(f"✅ {len(rows_to_sync)} product(s) synced to Supabase successfully!")
+                st.success(f"✅ {len(rows_to_sync)} product(s) synced to Supabase successfully ({inserts_count} new, {updates_count} duplicate/updated)!")
     else:
         st.caption("💡 Configure Supabase credentials in **⚙️ Model Configuration** to enable cloud sync.")
