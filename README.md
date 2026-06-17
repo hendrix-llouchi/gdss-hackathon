@@ -1,117 +1,139 @@
 # 🏷️ IMDB Auto-Fill Tool
-**GDSS-Maverick Hackathon 2026** · AI-Driven Image-to-Item Master Data
+**GDSS-Maverick Hackathon 2026** · Premium AI-Driven Image-to-Item Master Data Pipeline
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gdss-hackathon-aw2swnadk2wp8eka4nmb2k.streamlit.app/)
 
 ## 🌐 Live Demo
-https://gdss-hackathon-aw2swnadk2wp8eka4nmb2k.streamlit.app/
+Visit the production app here: [GDSS Hackathon Live App](https://gdss-hackathon-aw2swnadk2wp8eka4nmb2k.streamlit.app/)
 
-## Overview
-This tool accepts product images, automatically extracts 13 Item Master Database (IMDB) attributes using a vision AI model, and exports a structured Excel/CSV file ready for database upload. It eliminates manual product data entry for retail teams.
+---
 
-## The 13 IMDB Columns
-| Column | Description |
-|---|---|
-| ITEM NAME | Full descriptive product name |
-| BARCODE | Numeric barcode digits only |
-| MANUFACTURER | Company that manufactures the product |
-| BRAND | Brand name as shown on package |
-| WEIGHT | Net weight/volume e.g. 80G, 500ML |
-| PACKAGING TYPE | SACHET, BOTTLE, BOX, CAN, POUCH etc. |
-| COUNTRY | Country of manufacture/origin |
-| VARIANT | e.g. ORIGINAL, LOW FAT, ROSE |
-| TYPE | Short category e.g. SOAP, DETERGENT |
-| FRAGRANCE FLAVOR | e.g. LEMON, ROSE, CAPPUCCINO |
-| PROMOTION | Any on-pack promotion text |
-| ADDONS | Additional features e.g. SPOON INCLUDED |
-| TAGLINE | Short promotional slogan |
+## ⚡ Key Features
 
-## Tech Stack
-- Python 3.10+
-- Streamlit (UI)
-- Groq API — Llama 4 Scout 17B Vision (primary extraction engine)
-- OpenRouter — Gemma 4 26B (fallback engine)
-- Pillow (image preprocessing)
-- openpyxl (Excel export)
+*   **🧠 Multi-Model Vision AI**: Extracts 13 critical Item Master attributes from packaging images using **Groq (Llama 3.2/4 Vision)** and **OpenRouter (Gemma 2/4)**.
+*   **📸 Mobile-Optimized Live Camera**: Capture snapshots directly using your phone/device camera with automatic queue accumulation and prefix-based grouping.
+*   **⏱️ Rate-Limit Safe Sequential Queue**: Collects all images into a single flat processing queue with a guaranteed 6-second delay between API requests to strictly prevent free-tier rate limiting.
+*   **☁️ Supabase Cloud Sync**: Official `supabase` library integration targeting the `imdb_products` table.
+*   **🔄 Smart Duplicate Detection & Merging**:
+    *   Finds matching products by barcode (if available) or by `brand + weight + packaging_type` (fallback).
+    *   Automatically increments `scan_count`, marks the record `is_duplicate = True`, and merges/fills empty fields from the new scan.
+*   **📊 Item Master Database View**:
+    *   Interactive view displaying all stored items.
+    *   Search filter by brand name or product/item name.
+    *   Visual alert highlighting duplicate entries in red.
+    *   Testing-ready **Clear Database** action.
+*   **📥 Premium Exports**: Downloads custom-formatted Excel spreadsheets (pre-styled with borders and headers) and CSVs.
 
-## Prerequisites
-- Python 3.10 or higher installed
-- A Groq API key (free at console.groq.com — no credit card needed)
-- An OpenRouter API key (free at openrouter.ai — no credit card needed)
+---
 
-## Installation
+## 📋 The 13 IMDB Columns
 
-### Step 1 — Clone the repo
+| Column | Description | Format Rules |
+|---|---|---|
+| **ITEM NAME** | Full descriptive retail product name | e.g. `KNORR CHICKEN STOCK CUBE 20G` |
+| **BARCODE** | Numeric barcode digits | Digits only (no spaces/dashes) |
+| **MANUFACTURER** | Producing company name | e.g. `UNILEVER` |
+| **BRAND** | Brand name exactly as shown | e.g. `KNORR` |
+| **WEIGHT** | Net weight or volume | No space between number and unit (e.g. `80G`, `1L`) |
+| **PACKAGING TYPE** | Standard container category | `SACHET`, `BOTTLE`, `BOX`, `CAN`, `POUCH` etc. |
+| **COUNTRY** | Origin country as printed | e.g. `MALAYSIA`, `THAILAND` |
+| **VARIANT** | Specific flavor/formula variant | e.g. `ORIGINAL`, `LOW FAT`, `REDUCED SALT` |
+| **TYPE** | Short product category | e.g. `MAYONNAISE`, `SEASONING`, `DETERGENT` |
+| **FRAGRANCE FLAVOR**| Scent or taste descriptor | e.g. `LEMON`, `CHICKEN`, `VANILLA` |
+| **PROMOTION** | On-package promotional text | e.g. `BUY 2 FREE 1`, `20% EXTRA FREE` |
+| **ADDONS** | Included extras or bonuses | e.g. `SPOON INCLUDED`, `FREE RECIPE BOOK` |
+| **TAGLINE** | Short promotional slogan | e.g. `TASTE THE DIFFERENCE` |
+
+---
+
+## 🛠️ Installation & Setup
+
+### Step 1 — Clone the Repository
 ```bash
 git clone https://github.com/hendrix-llouchi/gdss-hackathon
 cd gdss-hackathon
 ```
 
-### Step 2 — Create a virtual environment
+### Step 2 — Create and Activate Virtual Environment
 ```bash
+# Create environment
 python -m venv .venv
-```
 
-### Step 3 — Activate the virtual environment
-**Windows:**
-```bash
+# Activate (Windows)
 .venv\Scripts\activate
-```
-**Mac/Linux:**
-```bash
+
+# Activate (Mac/Linux)
 source .venv/bin/activate
 ```
 
-### Step 4 — Install dependencies
+### Step 3 — Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 5 — Add your API keys
-Open `app.py` and find the config block at the top. Add your keys:
-```python
-GROQ_API_KEY = "your_groq_api_key_here"
-OPENROUTER_API_KEY = "your_openrouter_api_key_here"
+### Step 4 — Configure Local Secrets
+Streamlit utilizes a local secrets file for keys. Create a folder named `.streamlit` and add a `secrets.toml` file inside it:
+
+```toml
+# .streamlit/secrets.toml
+GROQ_API_KEY = "gsk_your_groq_api_key"
+OPENROUTER_API_KEY = "sk-or-v1-your_openrouter_api_key"
+
+# Supabase Credentials
+SUPABASE_URL = "https://your-project-id.supabase.co"
+SUPABASE_KEY = "your-anon-or-service-key"
 ```
 
-## Running the App
+---
+
+## 🚀 Running the Application
+
+Launch the Streamlit dashboard locally:
 ```bash
 streamlit run app.py
 ```
-The app will open automatically at `http://localhost:8501`
+The application will launch automatically at `http://localhost:8501`.
 
-## Using the Tool
-1. **Upload** — drag and drop product images (JPG/PNG). Multiple images of the same product are grouped automatically by filename prefix
-2. **Extract** — click 🚀 Run Pipeline. The AI model processes each image and extracts the 13 fields
-3. **Preview & Edit** — review the extracted data in the table. Click any cell to correct it before exporting
-4. **Export** — download as Excel (.xlsx) or CSV (.csv)
+---
 
-## Pipeline Architecture
+## 📐 Pipeline Architecture
+
 ```
-Image Upload → Preprocessing (resize, base64)
-             → AI Extraction (Groq/OpenRouter vision model)
-             → Aggregation (majority vote across multiple images)
-             → Validation & Normalization (barcodes, weights, country)
-             → Export (Excel/CSV)
+[ Upload Files / Camera Snapshots ]
+                 │
+                 ▼
+     [ Flat Sequential Queue ] (Strict 6s Delay)
+                 │
+                 ▼
+     [ Vision AI Extraction ] (Groq / OpenRouter)
+                 │
+                 ▼
+[ Grouping & Aggregation ] (Majority vote on prefix groups)
+                 │
+                 ▼
+     [ Normalization & Validation ] (Barcodes, Weights, etc.)
+                 │
+                 ▼
+     [ Supabase Sync / Merge ] ──► [ 📊 Item Master Database ]
+                 │
+                 ▼
+         [ Excel/CSV Export ]
 ```
 
-## Rate Limits (Free Tier)
-- Groq: 30 requests/minute, 14,400 requests/day
-- OpenRouter: 50 requests/day on free models
-- The app handles rate limits automatically with retry logic
+---
 
-## Sample Output
-See `IMDB_predictions_submission.xlsx` for the full 48-product output generated from the hackathon dataset using Gemma 4 vision model.
+## 📁 Project Structure
 
-## Project Structure
 ```
 gdss-hackathon/
-├── app.py                          # Streamlit UI + pipeline
-├── pipeline.py                     # CLI pipeline with checkpoint support
-├── sample_images/                  # Sample product images for testing
-├── IMDB_predictions_submission.xlsx # Full 48-product output
-├── .env.example                    # API key template
-├── .gitignore                      # Excludes .env and venv
-└── README.md
+├── .streamlit/
+│   ├── config.toml                  # UI styling settings
+│   └── secrets.toml                 # Local API & DB secrets (Git ignored)
+├── app.py                           # Main Streamlit application
+├── pipeline.py                      # CLI runner with checkpointing support
+├── sample_images/                   # Tester images
+├── IMDB_predictions_submission.xlsx  # Hackathon dataset output
+├── requirements.txt                 # Dependencies (including supabase client)
+├── .gitignore                       # Excluded folders, secrets, and environments
+└── README.md                        # Documentation
 ```
-
-## API Keys for Judges
-Groq and OpenRouter API keys are provided separately in the submission form as required by the hackathon guidelines.
