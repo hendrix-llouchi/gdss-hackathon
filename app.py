@@ -1032,13 +1032,13 @@ def preprocess_image(image_file, max_size=(1024, 1024)):
 
 GROQ_API_KEY       = ""
 OPENROUTER_API_KEY = ""
-GROQ_DELAY_SEC     = 6                       # Minimum seconds between Groq/OpenRouter requests
+GROQ_DELAY_SEC     = 4                       # Minimum seconds between Groq/OpenRouter requests
 
 
 def extract_via_groq(b64_image, api_key, max_retries=5):
     """
     Send image to Groq chat-completions endpoint (meta-llama/llama-4-scout-17b-16e-instruct).
-    Exponential backoff on 429 errors: 30s, 60s, 120s, 240s, 480s.
+    Exponential backoff on 429 errors: 5s, 10s, 20s, 40s, 80s.
     """
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -1056,7 +1056,7 @@ def extract_via_groq(b64_image, api_key, max_retries=5):
     for attempt in range(max_retries):
         resp = requests.post(url, json=payload, headers=headers, timeout=90)
         if resp.status_code == 429:
-            wait = 30 * (2 ** attempt)
+            wait = 5 * (2 ** attempt)
             st.warning(f"⏳ Groq rate limit hit. Waiting {wait}s before retry (attempt {attempt + 1}/{max_retries})...")
             time.sleep(wait)
             continue
