@@ -672,25 +672,55 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
 
+    /* Stepper card in Pipeline Page */
+    .stepper-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 0.85rem 1.5rem;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.015);
+        margin-bottom: 2rem;
+        width: 100%;
+    }
+    .stepper-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .page-tab {
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        color: #475569 !important;
+        opacity: 0.55 !important;
+        padding: 0.4rem 0.8rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        border-radius: 10px;
+        transition: all 0.2s ease !important;
+    }
+    .page-tab.active-tab {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        opacity: 1 !important;
+        background-color: #f1f5f9;
+        border: 1px solid #cbd5e1;
+    }
+    .stepper-arrow {
+        color: #cbd5e1;
+        font-size: 1rem;
+        font-weight: 500;
+        user-select: none;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
 
 def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
-    steps = [
-        ("Upload", 1),
-        ("Extract", 2),
-        ("Aggregate", 3),
-        ("Validate", 4),
-        ("Export", 5)
-    ]
-    tabs_html = ""
-    for label, step_num in steps:
-        if step_num == active_step and current_view == "pipeline":
-            tabs_html += f'<span class="nav-tab active-tab"><span class="step-num active-num">{step_num}</span>{label}</span>'
-        else:
-            tabs_html += f'<span class="nav-tab"><span class="step-num">{step_num}</span>{label}</span>'
-
     pipeline_active = 'active-view' if current_view == 'pipeline' else ''
     database_active = 'active-view' if current_view == 'database' else ''
 
@@ -700,11 +730,8 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             <div class="nav-left">
                 <span class="nav-logo">GDSS</span>
                 <div class="nav-divider" style="margin-left:1rem;"></div>
-                <a href="?view=pipeline" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">🏭 Pipeline</a>
-                <a href="?view=database" class="nav-view-link {database_active}">📊 Item Master Database</a>
-            </div>
-            <div class="nav-center" style="{'display:none' if current_view=='database' else ''}">
-                {tabs_html}
+                <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">🏭 Pipeline</a>
+                <a href="?view=database" target="_self" class="nav-view-link {database_active}">📊 Item Master Database</a>
             </div>
             <div class="nav-right">
                 <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{model_name}</span>
@@ -713,6 +740,34 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
     </div>
     """
     st.markdown(navbar_html, unsafe_allow_html=True)
+
+
+def render_pipeline_stepper(active_step):
+    steps = [
+        ("Upload", 1),
+        ("Extract", 2),
+        ("Aggregate", 3),
+        ("Validate", 4),
+        ("Export", 5)
+    ]
+    tabs_html = ""
+    for i, (label, step_num) in enumerate(steps):
+        if step_num == active_step:
+            tabs_html += f'<div class="page-tab active-tab"><span class="step-num active-num">{step_num}</span>{label}</div>'
+        else:
+            tabs_html += f'<div class="page-tab"><span class="step-num">{step_num}</span>{label}</div>'
+        if i < len(steps) - 1:
+            tabs_html += '<span class="stepper-arrow">→</span>'
+
+    stepper_html = f"""
+    <div class="stepper-card">
+        <div class="stepper-container">
+            {tabs_html}
+        </div>
+    </div>
+    """
+    st.markdown(stepper_html, unsafe_allow_html=True)
+
 
 
 # ─────────────────────────────────────────────
@@ -1242,7 +1297,13 @@ if current_view == "database":
 # VIEW: PIPELINE (default)
 # ═══════════════════════════════════════════════
 st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>🏷️ IMDB Auto-Fill</h2>", unsafe_allow_html=True)
-st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 2rem;'>Welcome back! Streamline retail master data cataloging with AI-driven extraction.</p>", unsafe_allow_html=True)
+st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Welcome back! Streamline retail master data cataloging with AI-driven extraction.</p>", unsafe_allow_html=True)
+
+# Render the page-level progress stepper
+stepper_placeholder = st.empty()
+with stepper_placeholder.container():
+    render_pipeline_stepper(active_step)
+
 st.divider()
 
 # ─────────────────────────────────────────────
@@ -1400,9 +1461,11 @@ if all_files:
             processed_count_by_product = defaultdict(int)
 
             for idx, (product_id, f) in enumerate(queue):
-                # Update navbar to "Extract" (active_step = 2)
+                # Update navbar and stepper to "Extract" (active_step = 2)
                 with navbar_placeholder.container():
                     render_navbar(2, engine)
+                with stepper_placeholder.container():
+                    render_pipeline_stepper(2)
                 
                 status.markdown(f"**Processing Image {idx + 1}/{total_images}:** `{f.name}` (Product `{product_id}`)...")
                 
@@ -1445,10 +1508,14 @@ if all_files:
                     if extracted_by_product[product_id]:
                         with navbar_placeholder.container():
                             render_navbar(3, engine)
+                        with stepper_placeholder.container():
+                            render_pipeline_stepper(3)
                         merged = aggregate(extracted_by_product[product_id])
                         
                         with navbar_placeholder.container():
                             render_navbar(4, engine)
+                        with stepper_placeholder.container():
+                            render_pipeline_stepper(4)
                         merged = validate(merged)
                         
                         merged["_product_id"] = product_id
@@ -1496,9 +1563,11 @@ if all_files:
             else:
                 sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase!")
 
-        # Update navbar to "Export/Preview" (active_step = 5)
+        # Update navbar and stepper to "Export/Preview" (active_step = 5)
         with navbar_placeholder.container():
             render_navbar(5, engine, current_view)
+        with stepper_placeholder.container():
+            render_pipeline_stepper(5)
 
 # ─────────────────────────────────────────────
 # STEP 3 — PREVIEW & EDIT
