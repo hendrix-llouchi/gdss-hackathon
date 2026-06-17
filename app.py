@@ -1587,9 +1587,7 @@ if all_files:
             processed_count_by_product = defaultdict(int)
 
             for idx, (product_id, f) in enumerate(queue):
-                # Update navbar and stepper to "Extract" (active_step = 2)
-                with navbar_placeholder.container():
-                    render_navbar(2, engine)
+                # Update stepper to "Extract" (active_step = 2)
                 with stepper_placeholder.container():
                     render_pipeline_stepper(2)
                 
@@ -1632,14 +1630,10 @@ if all_files:
                 if processed_count_by_product[product_id] == len(groups[product_id]):
                     # All images for this product have been processed, let's aggregate and validate!
                     if extracted_by_product[product_id]:
-                        with navbar_placeholder.container():
-                            render_navbar(3, engine)
                         with stepper_placeholder.container():
                             render_pipeline_stepper(3)
                         merged = aggregate(extracted_by_product[product_id])
                         
-                        with navbar_placeholder.container():
-                            render_navbar(4, engine)
                         with stepper_placeholder.container():
                             render_pipeline_stepper(4)
                         merged = validate(merged)
@@ -1696,9 +1690,7 @@ if all_files:
             else:
                 sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase ({inserts_count} new, {updates_count} duplicate/updated)!")
 
-        # Update navbar and stepper to "Export/Preview" (active_step = 5)
-        with navbar_placeholder.container():
-            render_navbar(5, engine, current_view, key_suffix="export")
+        # Update stepper to "Export/Preview" (active_step = 5)
         with stepper_placeholder.container():
             render_pipeline_stepper(5)
 
