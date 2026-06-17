@@ -805,22 +805,23 @@ st.markdown("""
 def render_navbar(active_step, model_name="Groq API", current_view="pipeline", key_suffix="main"):
     compact_model_name = model_name.replace(" API", "")
     
-    html = f"""
-    <div style="
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        padding: 0.85rem 1.5rem;
-        margin-top: 0.5rem;
-        margin-bottom: 1.5rem;
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-radius: 16px;
-        box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.025);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-    ">
-        <div style="display: flex; align-items: center; gap: 12px;">
+    st.markdown("""
+    <style>
+        div[data-testid="column"] button {
+            border-radius: 12px !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+            height: 38px !important;
+            transition: all 0.2s ease !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    col_logo, col_pipe, col_db, col_badge = st.columns([1.5, 1.2, 1.8, 1.5])
+    
+    with col_logo:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; height: 38px; margin-top: 2px;">
             <div style="
                 background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
                 -webkit-background-clip: text;
@@ -831,9 +832,25 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline", k
                 letter-spacing: -0.03em;
                 line-height: 1;
             ">VisionLM</div>
-            <div style="font-size: 0.7rem; background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 99px; font-weight: 700; letter-spacing: 0.05em;">BETA</div>
+            <div style="font-size: 0.65rem; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 99px; font-weight: 700; letter-spacing: 0.05em; height: 16px; display: flex; align-items: center; justify-content: center;">BETA</div>
         </div>
-        <div>
+        """, unsafe_allow_html=True)
+        
+    with col_pipe:
+        btn_type = "primary" if current_view == "pipeline" else "secondary"
+        if st.button("🏭 Pipeline", key=f"nav_pipe_{key_suffix}", use_container_width=True, type=btn_type):
+            st.session_state.current_view = "pipeline"
+            st.rerun()
+            
+    with col_db:
+        btn_type = "primary" if current_view == "database" else "secondary"
+        if st.button("📊 Item Master Database", key=f"nav_db_{key_suffix}", use_container_width=True, type=btn_type):
+            st.session_state.current_view = "database"
+            st.rerun()
+            
+    with col_badge:
+        st.markdown(f"""
+        <div style="display: flex; justify-content: flex-end; align-items: center; height: 38px;">
             <span style="
                 display: inline-flex;
                 align-items: center;
@@ -850,16 +867,16 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline", k
                 <span style='color:#10b981; margin-right:8px; font-size: 0.6rem; animation: pulse 2s infinite;'>●</span>{compact_model_name}
             </span>
         </div>
-    </div>
-    <style>
-        @keyframes pulse {{
-            0% {{ opacity: 1; }}
-            50% {{ opacity: 0.4; }}
-            100% {{ opacity: 1; }}
-        }}
-    </style>
-    """
-    st.markdown(html, unsafe_allow_html=True)
+        <style>
+            @keyframes pulse {{
+                0% {{ opacity: 1; }}
+                50% {{ opacity: 0.4; }}
+                100% {{ opacity: 1; }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+        
+    st.markdown("<hr style='margin-top: 0.5rem; margin-bottom: 1.5rem;'/>", unsafe_allow_html=True)
 
 
 def render_pipeline_stepper(active_step):
@@ -1289,99 +1306,24 @@ else:
 # ═══════════════════════════════════════════════
 if current_view == "database":
     st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>📊 Item Master Database</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Browse, search, and manage all previously extracted products stored in Supabase.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Browse and manage all previously extracted products stored in Supabase.</p>", unsafe_allow_html=True)
 
-    client = get_supabase_client()
-    if client:
-        # ── Search bar ──────────────────────────────────────────────────
-        col_search, col_refresh = st.columns([3, 1])
-        with col_search:
-            search_query = st.text_input(
-                "🔍 Search by Brand or Product Name",
-                placeholder="e.g. KNORR or CHICKEN STOCK...",
-                label_visibility="collapsed"
-            )
-        with col_refresh:
-            do_refresh = st.button("🔄 Refresh", use_container_width=True)
+    if st.button("🔄 Refresh Data", type="primary"):
+        st.rerun()
 
-        # ── Fetch data ──────────────────────────────────────────────────
-        rows, fetch_err = supabase_get_products(search_query)
-
-        if fetch_err:
-            st.error(f"❌ Could not load data from Supabase: {fetch_err}")
-        elif not rows:
-            st.info("📭 No products found. Run the pipeline and sync results to populate the database.")
-            st.markdown("---")
-            if st.button("🗑️ Clear Database (Force delete all)", type="secondary", use_container_width=True):
-                try:
-                    client.table("imdb_products").delete().neq("item_name", "NON_EXISTENT_VAL_THAT_WILL_NEVER_EXIST").execute()
-                    st.success("✅ Database cleared successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error clearing database: {e}")
-        else:
-            # ── Summary chips ───────────────────────────────────────────
-            total_products = len(rows)
-            total_scans = sum(r.get("scan_count", 1) for r in rows)
-            total_duplicates = sum(1 for r in rows if r.get("is_duplicate"))
-            st.markdown(
-                f'<div style="margin-bottom:1rem;">'
-                f'<span class="db-stat-chip">📦 {total_products} Products</span>'
-                f'<span class="db-stat-chip">📸 {total_scans} Total Scans</span>'
-                f'<span class="db-stat-chip">⚠️ {total_duplicates} Duplicate Products</span>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-
-            # ── Build display DataFrame ─────────────────────────────────
-            db_rows = []
-            for r in rows:
-                bc = r.get("barcode", "")
-                is_dup = bool(r.get("is_duplicate", False))
-                last_upd = r.get("last_updated", "")
-                if last_upd and "T" in last_upd:
-                    last_upd = last_upd.replace("T", " ")[:16]
-                db_rows.append({
-                    "Product Name":    r.get("item_name", ""),
-                    "Brand":           r.get("brand", ""),
-                    "Barcode":         bc,
-                    "Weight":          r.get("weight", ""),
-                    "Type":            r.get("type", ""),
-                    "Country":         r.get("country", ""),
-                    "Packaging":       r.get("packaging_type", ""),
-                    "Scan Count":      r.get("scan_count", 1),
-                    "is_duplicate":    "Yes" if is_dup else "No",
-                    "Last Updated":    last_upd,
-                })
-
-            db_df = pd.DataFrame(db_rows)
-            
-            # Highlight duplicate rows in red (light red background and dark red text)
-            def highlight_rows(row):
-                is_duplicate = row["is_duplicate"] == "Yes"
-                return ['background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;' if is_duplicate else '' for _ in row]
-            
-            styled_df = db_df.style.apply(highlight_rows, axis=1)
-            
-            st.dataframe(
-                styled_df,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Scan Count":   st.column_config.NumberColumn("Scan Count", format="%d 📸"),
-                    "is_duplicate": st.column_config.TextColumn("is_duplicate"),
-                    "Last Updated": st.column_config.TextColumn("Last Updated"),
-                }
-            )
-
-            st.markdown("---")
-            if st.button("🗑️ Clear Database", type="secondary", use_container_width=True):
-                try:
-                    client.table("imdb_products").delete().neq("item_name", "NON_EXISTENT_VAL_THAT_WILL_NEVER_EXIST").execute()
-                    st.success("✅ Database cleared successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error clearing database: {e}")
+    # Resolve client
+    supabase_client_inst = get_supabase_client() or supabase_client
+    
+    if not supabase_client_inst:
+        st.error("❌ Supabase client is not initialized. Please configure SUPABASE_URL and SUPABASE_KEY.")
+    else:
+        try:
+            supabase_client = supabase_client_inst
+            response = supabase_client.table("imdb_products").select("*").order("created_at", desc=True).execute()
+            df = pd.DataFrame(response.data)
+            st.dataframe(df)
+        except Exception as e:
+            st.error(f"❌ Error fetching data: {e}")
 
     st.stop()   # Do not render pipeline below
 
