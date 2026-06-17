@@ -1470,6 +1470,7 @@ if all_files:
             st.warning(f"⚠️ Could not read checkpoint file: {e}")
 
     if st.button("🚀 Run Pipeline", use_container_width=True):
+        pipeline_success = True
         # Create a dictionary to hold results by product ID to preserve the original order of products
         results_by_product = {}
         for product_id in groups:
@@ -1486,6 +1487,8 @@ if all_files:
                 queue.append((product_id, f))
 
         total_images = len(queue)
+        successful_extractions = 0
+        failed_extractions = 0
 
         if total_images > 0:
             progress = st.progress(0)
@@ -1523,8 +1526,10 @@ if all_files:
                     elapsed = time.time() - start
                     timer_slot.success(f"✅ `{f.name}` done in {elapsed:.1f}s")
                     extracted_by_product[product_id].append(record)
+                    successful_extractions += 1
                 except Exception as e:
                     timer_slot.warning(f"⚠️ Could not extract from `{f.name}`: {e}")
+                    failed_extractions += 1
 
                 # Enforce minimum gap between API calls — only sleep what's left of the window
                 if idx < total_images - 1:
@@ -1561,31 +1566,55 @@ if all_files:
             status.empty()
             progress.empty()
 
-        # Reassemble the final results in the exact original order of the products
-        results = [results_by_product[pid] for pid in groups if pid in results_by_product]
-        
-        st.session_state.results = results
-        st.session_state.edited_df = pd.DataFrame(results, columns=IMDB_COLS)
-        
-        # Clean up checkpoint after successful full completion
-        if checkpoint_path.exists():
-            try:
-                checkpoint_path.unlink()
-            except Exception as e:
-                st.warning(f"⚠️ Could not delete checkpoint file: {e}")
+            if successful_extractions == 0:
+                st.error("❌ Pipeline could not complete — extraction failed for all images. Please check your API key or try again in 60 seconds.")
+                pipeline_success = False
+            elif failed_extractions > 0:
+                st.warning("⚠️ Some images could not be extracted. Proceeding with available data.")
 
-        st.markdown('<div class="success-banner">✅ Pipeline complete!</div>', unsafe_allow_html=True)
+        if pipeline_success:
+            # Reassemble the final results in the exact original order of the products
+            results = [results_by_product[pid] for pid in groups if pid in results_by_product]
+            
+            st.session_state.results = results
+            st.session_state.edited_df = pd.DataFrame(results, columns=IMDB_COLS)
 
-        # ── Auto-sync to Supabase ─────────────────────────────────────
-        client = get_supabase_client()
-        if client:
-            for imdb_row in results:
-                supabase_upsert_product(imdb_row)
-            st.success("✅ Synced to Item Master Database")
+            # Clean up checkpoint after successful full completion
+            if checkpoint_path.exists():
+                try:
+                    checkpoint_path.unlink()
+                except Exception as e:
+                    st.warning(f"⚠️ Could not delete checkpoint file: {e}")
 
-        # Update stepper to "Export/Preview" (active_step = 5)
-        with stepper_placeholder.container():
-            render_pipeline_stepper(5)
+            st.markdown('<div class="success-banner">✅ Pipeline complete!</div>', unsafe_allow_html=True)
+
+            # ── Auto-sync to Supabase ─────────────────────────────────────
+            # Only attempt Supabase sync if at least one product was successfully extracted.
+            if results:
+                url = st.session_state.get("supabase_url", SUPABASE_URL)
+                key = st.session_state.get("supabase_key", SUPABASE_KEY)
+                if url and key:
+                    try:
+                        client = get_supabase_client()
+                        if client:
+                            sync_success = True
+                            for imdb_row in results:
+                                success, msg = supabase_upsert_product(imdb_row)
+                                if not success:
+                                    sync_success = False
+                                    break
+                            if sync_success:
+                                st.success("✅ Synced to Item Master Database")
+                            else:
+                                st.warning("⚠️ Extraction complete but could not sync to database. Your export is still available.")
+                        else:
+                            st.warning("⚠️ Extraction complete but could not sync to database. Your export is still available.")
+                    except Exception as e:
+                        st.warning("⚠️ Extraction complete but could not sync to database. Your export is still available.")
+
+            # Update stepper to "Export/Preview" (active_step = 5)
+            with stepper_placeholder.container():
+                render_pipeline_stepper(5)
 
 # ─────────────────────────────────────────────
 # STEP 3 — PREVIEW & EDIT
