@@ -805,25 +805,14 @@ st.markdown("""
 def render_navbar(active_step, model_name="Groq API", current_view="pipeline", key_suffix="main"):
     compact_model_name = model_name.replace(" API", "")
     
-    col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
-    
-    with col1:
-        st.markdown("<h3 style='margin:0; padding-top:0.25rem; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>VisionLM</h3>", unsafe_allow_html=True)
-        
-    with col2:
-        if st.button("🏭 Pipeline", key=f"nav_pipe_{key_suffix}", use_container_width=True):
-            st.session_state.current_view = "pipeline"
-            st.rerun()
-            
-    with col3:
-        if st.button("📊 Item Master Database", key=f"nav_db_{key_suffix}", use_container_width=True):
-            st.session_state.current_view = "database"
-            st.rerun()
-            
-    with col4:
-        st.markdown(f"<div style='text-align: right; padding-top:0.5rem;'><span class='nav-badge'><span style='color:#22c55e; margin-right:4px;'>●</span>{compact_model_name}</span></div>", unsafe_allow_html=True)
-    
-    st.markdown("<hr style='margin-top: 0.5rem; margin-bottom: 1rem;'/>", unsafe_allow_html=True)
+    html = f"""
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.25rem;">
+        <h3 style='margin:0; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>VisionLM</h3>
+        <div><span class='nav-badge'><span style='color:#22c55e; margin-right:4px;'>●</span>{compact_model_name}</span></div>
+    </div>
+    <hr style='margin-top: 0.5rem; margin-bottom: 1rem;'/>
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_pipeline_stepper(active_step):
@@ -1660,29 +1649,4 @@ if st.session_state.results:
             mime="text/csv",
             use_container_width=True
         )
-
-    # ── Manual Supabase Sync ─────────────────────────────────────────
-    client = get_supabase_client()
-    if client:
-        st.markdown("---")
-        if st.button("☁️ Sync Edits to Supabase", use_container_width=True):
-            rows_to_sync = edited.to_dict("records")
-            sync_errors = []
-            inserts_count = 0
-            updates_count = 0
-            with st.spinner(f"Syncing {len(rows_to_sync)} product(s) to Supabase..."):
-                for row in rows_to_sync:
-                    ok, msg = supabase_upsert_product(row)
-                    if not ok:
-                        sync_errors.append(msg)
-                    else:
-                        if "Updated" in msg:
-                            updates_count += 1
-                        else:
-                            inserts_count += 1
-            if sync_errors:
-                st.warning(f"⚠️ {len(sync_errors)} error(s) during sync: {sync_errors[0]}")
-            else:
-                st.success(f"✅ {len(rows_to_sync)} product(s) synced to Supabase successfully ({inserts_count} new, {updates_count} duplicate/updated)!")
-    else:
-        st.caption("💡 Configure Supabase credentials in **⚙️ Model Configuration** to enable cloud sync.")
+
