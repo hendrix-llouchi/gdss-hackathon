@@ -216,63 +216,15 @@ st.markdown("""
         z-index: 99999 !important;
         margin: 0 !important;
     }
-    /* Mobile/Small Container: compact single-row navbar */
-    @container (max-width: 850px) {
+    /* Responsive navbar container styling */
+    @media (max-width: 850px) {
         .nav-container {
             width: 96% !important;
-            padding: 0.4rem 0.75rem !important;
-            border-radius: 16px !important;
-        }
-        .nav-logo {
-            font-size: 0.85rem !important;
-            margin-right: 0.5rem !important;
-        }
-        .nav-hamburger {
-            width: 32px !important;
-            height: 32px !important;
-            margin-right: 0.5rem !important;
-            border-radius: 8px !important;
-        }
-        /* Hide step text labels on mobile/small containers, show only the circled numbers */
-        .nav-tab {
-            font-size: 0 !important;
-        }
-        .step-num {
-            font-size: 0.65rem !important;
-            margin-right: 0 !important;
-        }
-        .nav-center {
-            gap: 0.5rem !important;
-        }
-        .nav-badge {
-            font-size: 0.65rem !important;
-            padding: 0.2rem 0.5rem !important;
-        }
-    }
-
-    /* Tablet & Medium Containers: slightly more compact navbar to prevent overflow */
-    @container (min-width: 851px) and (max-width: 1100px) {
-        .nav-container {
             padding: 0.5rem 1rem !important;
-        }
-        .nav-center {
-            gap: 0.8rem !important;
-        }
-        .nav-tab {
-            font-size: 0.82rem !important;
-        }
-        .step-num {
-            width: 18px !important;
-            height: 18px !important;
-            font-size: 0.68rem !important;
-            margin-right: 5px !important;
+            border-radius: 20px !important;
         }
         .nav-logo {
-            font-size: 1.1rem !important;
-        }
-        .nav-badge {
-            font-size: 0.75rem !important;
-            padding: 0.3rem 0.6rem !important;
+            font-size: 1.15rem !important;
         }
     }
 
@@ -720,21 +672,9 @@ st.markdown("""
     .nav-text-mobile {
         display: none !important;
     }
-    
-    /* Hide logo & divider on mobile/small screens */
-    @media (max-width: 600px) {
-        .nav-logo, .nav-divider {
-            display: none !important;
-        }
-        .nav-badge {
-            font-size: 0.75rem !important;
-            padding: 0.25rem 0.5rem !important;
-        }
-        .nav-view-link {
-            font-size: 0.82rem !important;
-            padding: 0.35rem 0.65rem !important;
-            gap: 0.25rem !important;
-        }
+    .nav-left-group {
+        display: flex;
+        align-items: center;
     }
     
     /* Shorten database label on tablets/phones */
@@ -747,33 +687,91 @@ st.markdown("""
         }
     }
     
-    /* Icon-only mode for very small screens (phones in portrait) */
+    /* Hide divider, center logo, and structure 3-column grid on mobile/small screens */
+    @media (max-width: 600px) {
+        .nav-left-group {
+            display: contents !important;
+        }
+        .nav-divider {
+            display: none !important;
+        }
+        .nav-container {
+            width: 96% !important;
+            padding: 0.45rem 0.75rem !important;
+            border-radius: 16px !important;
+            display: grid !important;
+            grid-template-columns: 1fr auto 1fr !important;
+            align-items: center !important;
+        }
+        .nav-logo-container {
+            order: 2 !important;
+            grid-column: 2 !important;
+            justify-self: center !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        .nav-left {
+            order: 1 !important;
+            grid-column: 1 !important;
+            justify-self: start !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.35rem !important;
+        }
+        .nav-right {
+            order: 3 !important;
+            grid-column: 3 !important;
+            justify-self: end !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        .nav-logo {
+            font-size: 1.1rem !important;
+            margin-right: 0 !important;
+        }
+        .nav-badge {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+        }
+        .nav-view-link {
+            font-size: 0.82rem !important;
+            padding: 0.35rem 0.65rem !important;
+            gap: 0.25rem !important;
+        }
+    }
+    
+    /* Icon-only mode for very small screens (phones in portrait) and pill badge styling */
     @media (max-width: 480px) {
         .nav-text-mobile, .nav-text-full {
             display: none !important;
         }
         .nav-view-link {
-            padding: 0.5rem !important;
+            padding: 0 !important; /* clear padding to avoid centering offset */
             border-radius: 50% !important;
             width: 36px !important;
             height: 36px !important;
-            justify-content: center !important;
-        }
-        .nav-left {
-            gap: 0.5rem !important;
-        }
-        .nav-badge {
-            font-size: 0 !important; /* hide the text label */
-            padding: 0.5rem !important;
-            border-radius: 50% !important;
-            width: 32px !important;
-            height: 32px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
         }
+        .nav-left {
+            gap: 0.35rem !important;
+        }
+        .nav-logo {
+            font-size: 1rem !important;
+        }
+        .nav-badge {
+            font-size: 0.72rem !important; /* Keep font compact but visible */
+            padding: 0.25rem 0.5rem !important;
+            border-radius: 12px !important; /* Keep pill shape */
+            width: auto !important;
+            height: auto !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 0.2rem !important;
+        }
         .nav-badge span {
-            margin-right: 0 !important; /* center the active dot */
+            margin-right: 2px !important; /* Restore dot margin */
         }
     }
     
@@ -807,26 +805,33 @@ st.markdown("""
 def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
     pipeline_active = 'active-view' if current_view == 'pipeline' else ''
     database_active = 'active-view' if current_view == 'database' else ''
+    
+    # Strip " API" to make it highly compact on mobile
+    compact_model_name = model_name.replace(" API", "")
 
     navbar_html = f"""
     <div class="nav-wrapper">
         <div class="nav-container">
-            <div class="nav-left">
-                <span class="nav-logo">GDSS</span>
-                <div class="nav-divider" style="margin-left:1rem;"></div>
-                <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
-                    <span>🏭</span>
-                    <span class="nav-text-full">Pipeline</span>
-                    <span class="nav-text-mobile">Pipeline</span>
-                </a>
-                <a href="?view=database" target="_self" class="nav-view-link {database_active}">
-                    <span>📊</span>
-                    <span class="nav-text-full">Item Master Database</span>
-                    <span class="nav-text-mobile">Database</span>
-                </a>
+            <div class="nav-left-group">
+                <div class="nav-logo-container">
+                    <span class="nav-logo">GDSS</span>
+                </div>
+                <div class="nav-divider"></div>
+                <div class="nav-left">
+                    <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
+                        <span>🏭</span>
+                        <span class="nav-text-full">Pipeline</span>
+                        <span class="nav-text-mobile">Pipeline</span>
+                    </a>
+                    <a href="?view=database" target="_self" class="nav-view-link {database_active}">
+                        <span>📊</span>
+                        <span class="nav-text-full">Item Master Database</span>
+                        <span class="nav-text-mobile">Database</span>
+                    </a>
+                </div>
             </div>
             <div class="nav-right">
-                <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{model_name}</span>
+                <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{compact_model_name}</span>
             </div>
         </div>
     </div>
