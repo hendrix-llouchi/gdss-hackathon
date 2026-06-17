@@ -878,8 +878,8 @@ if "engine" not in st.session_state:
     st.session_state.engine = "Groq API"
 if "camera_snapshots" not in st.session_state:
     st.session_state.camera_snapshots = []
-if "camera_key_index" not in st.session_state:
-    st.session_state.camera_key_index = 0
+if "last_added_photo" not in st.session_state:
+    st.session_state.last_added_photo = None
 
 
 # ─────────────────────────────────────────────
@@ -968,25 +968,33 @@ with tab_camera:
             st.success("Snapshot queue cleared!")
             st.rerun()
 
-    camera_key = f"camera_widget_{st.session_state.camera_key_index}"
-    camera_photo = st.camera_input("Take a snapshot of the product or product parts", key=camera_key)
+    camera_photo = st.camera_input("Take a snapshot of the product or product parts", key="camera_widget")
+
+    if camera_photo is None:
+        st.session_state.last_added_photo = None
 
     if camera_photo is not None:
         if not camera_product_id:
             st.warning("⚠️ Please specify a Product ID / Prefix before saving.")
         else:
             photo_bytes = camera_photo.getvalue()
-            # Unique identification using a timestamp
-            if st.button(f"➕ Add Snapshot to {camera_product_id} Queue", use_container_width=True):
-                timestamp = int(time.time())
-                filename = f"{camera_product_id}_snap_{timestamp}.jpg"
-                
-                # Wrap photo bytes in NamedBytesIO
-                snap_file = NamedBytesIO(photo_bytes, filename)
-                st.session_state.camera_snapshots.append(snap_file)
-                st.session_state.camera_key_index += 1
-                st.toast(f"✅ Saved `{filename}`!")
-                st.rerun()
+            # Check if this photo was already added to prevent repeat clicks
+            is_already_added = (st.session_state.last_added_photo is not None and 
+                                st.session_state.last_added_photo == photo_bytes)
+            
+            if is_already_added:
+                st.success("✅ Snapshot successfully added to queue! Tap 'Clear photo' below to capture the next angle/part.")
+            else:
+                if st.button(f"➕ Add Snapshot to {camera_product_id} Queue", use_container_width=True):
+                    timestamp = int(time.time())
+                    filename = f"{camera_product_id}_snap_{timestamp}.jpg"
+                    
+                    # Wrap photo bytes in NamedBytesIO
+                    snap_file = NamedBytesIO(photo_bytes, filename)
+                    st.session_state.camera_snapshots.append(snap_file)
+                    st.session_state.last_added_photo = photo_bytes
+                    st.toast(f"✅ Saved `{filename}`!")
+                    st.rerun()
 
     # Display camera snapshot queue grid if any exist
     if st.session_state.camera_snapshots:
