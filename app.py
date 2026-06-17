@@ -907,69 +907,25 @@ def get_supabase_client():
     return None
 
 
-import difflib
-
-def is_duplicate_product(new_item, existing_item):
-    b_new = new_item.get("barcode", "").strip().lower()
-    b_ext = existing_item.get("barcode", "").strip().lower()
-    
-    if b_new and b_ext and b_new != "empty" and b_ext != "empty":
-        ratio = difflib.SequenceMatcher(None, b_new, b_ext).ratio()
-        if ratio > 0.85:
-            return True
-        # If barcodes are significantly different but not exactly the same, continue to name matching
-
-    w_new = new_item.get("weight", "").strip().lower()
-    w_ext = existing_item.get("weight", "").strip().lower()
-    if w_new and w_ext and w_new != "empty" and w_ext != "empty":
-        if w_new != w_ext:
-            return False 
-            
-    br_new = new_item.get("brand", "").strip().lower()
-    br_ext = existing_item.get("brand", "").strip().lower()
-    
-    brand_match = False
-    if not br_new or not br_ext or br_new == "empty" or br_ext == "empty":
-        brand_match = True
-    else:
-        if difflib.SequenceMatcher(None, br_new, br_ext).ratio() > 0.8:
-            brand_match = True
-            
-    if not brand_match:
-        return False
-        
-    in_new = new_item.get("item_name", "").strip().lower()
-    in_ext = existing_item.get("item_name", "").strip().lower()
-    
-    if difflib.SequenceMatcher(None, in_new, in_ext).ratio() > 0.8:
-        return True
-        
-    return False
-
 def supabase_upsert_product(imdb_row):
     """
     Upsert a product into the Supabase imdb_products table.
-    Check for duplicates using fuzzy matching on barcode, brand, and item_name to handle OCR errors.
-    If exists increment scan_count and set is_duplicate=true and merge empty fields.
-    If not exists insert as new record.
     """
     client = get_supabase_client()
     if not client:
         return False, "Supabase credentials not configured."
     
-    barcode = imdb_row.get("BARCODE", "").strip()
     item_name = imdb_row.get("ITEM NAME", "").strip()
-    brand = imdb_row.get("BRAND", "").strip()
-    weight = imdb_row.get("WEIGHT", "").strip()
-    pkg = imdb_row.get("PACKAGING TYPE", "").strip()
-    
+    if not item_name:
+        return False, "No item name provided."
+        
     db_fields = {
         "item_name":        item_name,
-        "barcode":          barcode,
+        "barcode":          imdb_row.get("BARCODE", "").strip(),
         "manufacturer":     imdb_row.get("MANUFACTURER", "").strip(),
-        "brand":            brand,
-        "weight":           weight,
-        "packaging_type":   pkg,
+        "brand":            imdb_row.get("BRAND", "").strip(),
+        "weight":           imdb_row.get("WEIGHT", "").strip(),
+        "packaging_type":   imdb_row.get("PACKAGING TYPE", "").strip(),
         "country":          imdb_row.get("COUNTRY", "").strip(),
         "variant":          imdb_row.get("VARIANT", "").strip(),
         "type":             imdb_row.get("TYPE", "").strip(),
@@ -979,40 +935,18 @@ def supabase_upsert_product(imdb_row):
         "tagline":          imdb_row.get("TAGLINE", "").strip(),
     }
     
-    existing_records = None
     try:
-        # Check if a row with the same item_name already exists
         resp = client.table("imdb_products").select("*").eq("item_name", item_name).execute()
         existing_records = resp.data
-                
+        
         if existing_records and len(existing_records) > 0:
             existing = existing_records[0]
             scan_count = int(existing.get("scan_count") or 1) + 1
-            
-            # Merge empty fields: if existing value is empty/null, use new value
-            updated_fields = {}
-            for key, val in db_fields.items():
-                existing_val = existing.get(key)
-                if existing_val is None or str(existing_val).strip() == "":
-                    updated_fields[key] = val
-                else:
-                    updated_fields[key] = existing_val
-            
-            updated_fields["scan_count"] = scan_count
-            updated_fields["is_duplicate"] = True
-            import datetime
-            updated_fields["last_updated"] = datetime.datetime.utcnow().isoformat()
-            
-            client.table("imdb_products").update(updated_fields).eq("id", existing["id"]).execute()
+            client.table("imdb_products").update({"scan_count": scan_count}).eq("id", existing["id"]).execute()
             return True, f"Updated (scan #{scan_count})"
         else:
-            new_record = db_fields.copy()
-            new_record["scan_count"] = 1
-            new_record["is_duplicate"] = False
-            import datetime
-            new_record["last_updated"] = datetime.datetime.utcnow().isoformat()
-            
-            client.table("imdb_products").insert(new_record).execute()
+            db_fields["scan_count"] = 1
+            client.table("imdb_products").insert(db_fields).execute()
             return True, "Inserted as new record"
     except Exception as e:
         return False, str(e)
