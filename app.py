@@ -1243,6 +1243,33 @@ if "supabase_key" not in st.session_state:
 
 
 # ─────────────────────────────────────────────
+# VIEW ROUTING (Pipeline vs Item Master Database)
+# ─────────────────────────────────────────────
+# Navigation handles URL updates directly via javascript History API (popstate)
+
+if "current_view" not in st.session_state:
+    st.session_state.current_view = "pipeline"
+current_view = st.session_state.current_view
+
+# ─────────────────────────────────────────────
+# STATE DETECTION FOR PIPELINE TABS
+# ─────────────────────────────────────────────
+active_step = 1
+uploaded_files_in_state = st.session_state.get("uploader", [])
+camera_snapshots_in_state = st.session_state.get("camera_snapshots", [])
+if uploaded_files_in_state or camera_snapshots_in_state:
+    active_step = 2
+    if st.session_state.get("results"):
+        active_step = 5
+
+# ─────────────────────────────────────────────
+# HEADER (NAVBAR)
+# ─────────────────────────────────────────────
+navbar_placeholder = st.empty()
+with navbar_placeholder.container():
+    render_navbar(active_step, st.session_state.engine, current_view, key_suffix="main")
+
+# ─────────────────────────────────────────────
 # ENGINE CONFIG (MOVED FROM SIDEBAR)
 # ─────────────────────────────────────────────
 with st.expander("⚙️ Model Configuration", expanded=False):
@@ -1289,33 +1316,6 @@ if st.session_state.engine == "Groq API":
     api_key = st.session_state.groq_api_key
 else:
     api_key = st.session_state.openrouter_api_key
-
-# ─────────────────────────────────────────────
-# VIEW ROUTING (Pipeline vs Item Master Database)
-# ─────────────────────────────────────────────
-# Navigation handles URL updates directly via javascript History API (popstate)
-
-if "current_view" not in st.session_state:
-    st.session_state.current_view = "pipeline"
-current_view = st.session_state.current_view
-
-# ─────────────────────────────────────────────
-# STATE DETECTION FOR PIPELINE TABS
-# ─────────────────────────────────────────────
-active_step = 1
-uploaded_files_in_state = st.session_state.get("uploader", [])
-camera_snapshots_in_state = st.session_state.get("camera_snapshots", [])
-if uploaded_files_in_state or camera_snapshots_in_state:
-    active_step = 2
-    if st.session_state.get("results"):
-        active_step = 5
-
-# ─────────────────────────────────────────────
-# HEADER (NAVBAR)
-# ─────────────────────────────────────────────
-navbar_placeholder = st.empty()
-with navbar_placeholder.container():
-    render_navbar(active_step, engine, current_view, key_suffix="main")
 
 # ─────────────────────────────────────────────
 # ═══════════════════════════════════════════════
