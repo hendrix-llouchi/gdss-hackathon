@@ -1049,7 +1049,7 @@ def preprocess_image(image_file, max_size=(1024, 1024)):
 
 GROQ_API_KEY       = st.secrets.get("GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
 OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
-GROQ_DELAY_SEC     = 4                       # Minimum seconds between Groq/OpenRouter requests
+GROQ_DELAY_SEC     = 6                       # Minimum seconds between Groq/OpenRouter requests
 
 
 def extract_via_groq(b64_image, api_key, max_retries=5):
@@ -1213,7 +1213,7 @@ if "groq_api_key" not in st.session_state:
 if "openrouter_api_key" not in st.session_state:
     st.session_state.openrouter_api_key = OPENROUTER_API_KEY
 if "engine" not in st.session_state:
-    st.session_state.engine = "Groq API"
+    st.session_state.engine = "OpenRouter API"
 if "camera_snapshots" not in st.session_state:
     st.session_state.camera_snapshots = []
 if "last_added_photo" not in st.session_state:
@@ -1261,7 +1261,7 @@ if current_view == "pipeline":
             st.session_state.engine = st.selectbox(
                 "Choose model",
                 ["Groq API", "OpenRouter API"],
-                index=0 if st.session_state.get("engine", "Groq API") == "Groq API" else 1
+                index=1 if st.session_state.get("engine", "OpenRouter API") == "OpenRouter API" else 0
             )
         with col2:
             if st.session_state.engine == "Groq API":
@@ -1509,7 +1509,7 @@ if all_files:
                 try:
                     b64 = preprocess_image(f, max_size=(1024, 1024))
                     # Read keys directly from session_state (persists across reruns)
-                    engine = st.session_state.get("engine", "Groq API")
+                    engine = st.session_state.get("engine", "OpenRouter API")
                     if engine == "Groq API":
                         _api_key = st.session_state.get("groq_api_key", "")
                         if not _api_key:
