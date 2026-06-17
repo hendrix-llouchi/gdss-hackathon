@@ -835,108 +835,64 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             </div>
         </div>
     </div>
+    """
+    st.markdown(navbar_html, unsafe_allow_html=True)
     
+    # Inject JavaScript via a zero-height iframe component to bypass markdown script blocking
+    js_code = f"""
     <script>
-    window.clickHiddenButton = function(text) {{
-        try {{
-            let btn = null;
+    try {{
+        const parentWin = window.parent;
+        
+        parentWin.clickHiddenButton = function(text) {{
             try {{
-                btn = Array.from(document.querySelectorAll('button')).find(el => {{
-                    const txt = el.textContent || '';
-                    return txt.includes(text);
+                const btn = Array.from(parentWin.document.querySelectorAll('button')).find(el => {{
+                    return (el.textContent || '').includes(text);
+                }});
+                if (btn) {{
+                    btn.click();
+                }} else {{
+                    console.warn('Button not found:', text);
+                }}
+            }} catch (e) {{
+                console.error('Error in clickHiddenButton:', e);
+            }}
+        }};
+        
+        parentWin.hideTransitionButtons = function() {{
+            try {{
+                const btns = Array.from(parentWin.document.querySelectorAll('button'));
+                btns.forEach(btn => {{
+                    const txt = btn.textContent || '';
+                    if (txt.includes('switch_to_pipeline') || txt.includes('switch_to_database')) {{
+                        const container = btn.closest('div[data-testid="stElementContainer"]') || 
+                                          btn.closest('div[data-testid="element-container"]') || 
+                                          btn.parentElement;
+                        if (container) {{
+                            container.style.setProperty('position', 'fixed', 'important');
+                            container.style.setProperty('left', '-9999px', 'important');
+                            container.style.setProperty('top', '-9999px', 'important');
+                            container.style.setProperty('width', '1px', 'important');
+                            container.style.setProperty('height', '1px', 'important');
+                            container.style.setProperty('overflow', 'hidden', 'important');
+                        }}
+                    }}
                 }});
             }} catch (e) {{
-                console.error('Error searching local document:', e);
+                console.error('Error in hideTransitionButtons:', e);
             }}
-            
-            if (!btn) {{
-                try {{
-                    if (window.parent && window.parent !== window && window.parent.document) {{
-                        btn = Array.from(window.parent.document.querySelectorAll('button')).find(el => {{
-                            const txt = el.textContent || '';
-                            return txt.includes(text);
-                        }});
-                    }}
-                }} catch (e) {{
-                    console.log('Skipping parent document search (cross-origin or inaccessible):', e);
-                }}
-            }}
-            
-            if (btn) {{
-                btn.click();
-            }} else {{
-                console.warn('Button not found for: ' + text);
-                // Fallback: search for buttons by innerText
-                let buttons = document.querySelectorAll('button');
-                for (let b of buttons) {{
-                    if (b.innerText && b.innerText.includes(text)) {{
-                        b.click();
-                        return;
-                    }}
-                }}
-            }}
-        }} catch (globalErr) {{
-            console.error('Error in clickHiddenButton:', globalErr);
-        }}
-    }};
-    
-    window.hideTransitionButtons = function() {{
-        try {{
-            let docs = [document];
-            try {{
-                if (window.parent && window.parent !== window && window.parent.document) {{
-                    docs.push(window.parent.document);
-                }}
-            }} catch (e) {{
-                // Ignore cross-origin errors
-            }}
-            
-            docs.forEach(doc => {{
-                try {{
-                    const btns = Array.from(doc.querySelectorAll('button'));
-                    btns.forEach(btn => {{
-                        const txt = btn.textContent || '';
-                        if (txt.includes('switch_to_pipeline') || txt.includes('switch_to_database')) {{
-                            const container = btn.closest('div[data-testid="stElementContainer"]') || 
-                                              btn.closest('div[data-testid="element-container"]') || 
-                                              btn.parentElement;
-                            if (container) {{
-                                container.style.setProperty('position', 'fixed', 'important');
-                                container.style.setProperty('left', '-9999px', 'important');
-                                container.style.setProperty('top', '-9999px', 'important');
-                                container.style.setProperty('width', '1px', 'important');
-                                container.style.setProperty('height', '1px', 'important');
-                                container.style.setProperty('overflow', 'hidden', 'important');
-                            }}
-                        }}
-                    }});
-                }} catch (docErr) {{
-                    console.error('Error hiding buttons in document:', docErr);
-                }}
-            }});
-        }} catch (e) {{
-            console.error('Error in hideTransitionButtons:', e);
-        }}
-    }};
-    
-    window.hideTransitionButtons();
-    
-    try {{
-        const observer = new MutationObserver(window.hideTransitionButtons);
-        observer.observe(document.body, {{ childList: true, subtree: true }});
-        try {{
-            if (window.parent && window.parent !== window && window.parent.document) {{
-                observer.observe(window.parent.document.body, {{ childList: true, subtree: true }});
-            }}
-        }} catch (parentObsErr) {{
-            // Ignore parent observation errors
-        }}
-    }} catch (obsErr) {{
-        console.error('Error setting up MutationObserver:', obsErr);
+        }};
+        
+        // Hide transition buttons immediately and periodically
+        parentWin.hideTransitionButtons();
+        setInterval(parentWin.hideTransitionButtons, 100);
+        
+    }} catch (globalErr) {{
+        console.error('Error in JS injection iframe:', globalErr);
     }}
     </script>
     """
-    st.markdown(navbar_html, unsafe_allow_html=True)
+    components.html(js_code, height=0)
 
 
 def render_pipeline_stepper(active_step):
