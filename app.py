@@ -818,12 +818,12 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
                 </div>
                 <div class="nav-divider"></div>
                 <div class="nav-left">
-                    <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
+                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_pipeline')" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
                         <span>🏭</span>
                         <span class="nav-text-full">Pipeline</span>
                         <span class="nav-text-mobile">Pipeline</span>
                     </a>
-                    <a href="?view=database" target="_self" class="nav-view-link {database_active}">
+                    <a href="javascript:void(0);" onclick="clickHiddenButton('switch_to_database')" class="nav-view-link {database_active}">
                         <span>📊</span>
                         <span class="nav-text-full">Item Master Database</span>
                         <span class="nav-text-mobile">Database</span>
@@ -835,6 +835,45 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             </div>
         </div>
     </div>
+    
+    <script>
+    function clickHiddenButton(text) {{
+        let doc = document;
+        let btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
+        if (!btn && window.parent) {{
+            doc = window.parent.document;
+            btn = Array.from(doc.querySelectorAll('button')).find(el => el.textContent.includes(text));
+        }}
+        if (btn) {{
+            btn.click();
+        }} else {{
+            console.warn('Button not found for: ' + text);
+        }}
+    }}
+    
+    function hideTransitionButtons() {{
+        let docs = [document];
+        if (window.parent) docs.push(window.parent.document);
+        docs.forEach(doc => {{
+            const btns = Array.from(doc.querySelectorAll('button'));
+            btns.forEach(btn => {{
+                if (btn.textContent.includes('switch_to_pipeline') || btn.textContent.includes('switch_to_database')) {{
+                    const container = btn.closest('div[data-testid="element-container"]') || btn.parentElement;
+                    if (container) {{
+                        container.style.setProperty('display', 'none', 'important');
+                    }}
+                }}
+            }});
+        }});
+    }}
+    
+    hideTransitionButtons();
+    const observer = new MutationObserver(hideTransitionButtons);
+    observer.observe(document.body, {{ childList: true, subtree: true }});
+    if (window.parent) {{
+        observer.observe(window.parent.document.body, {{ childList: true, subtree: true }});
+    }}
+    </script>
     """
     st.markdown(navbar_html, unsafe_allow_html=True)
 
@@ -1262,6 +1301,13 @@ else:
 # ─────────────────────────────────────────────
 # VIEW ROUTING (Pipeline vs Item Master Database)
 # ─────────────────────────────────────────────
+if st.button("switch_to_pipeline", key="btn_pipeline_trigger"):
+    st.query_params["view"] = "pipeline"
+    st.rerun()
+if st.button("switch_to_database", key="btn_database_trigger"):
+    st.query_params["view"] = "database"
+    st.rerun()
+
 current_view = st.query_params.get("view", "pipeline")
 
 # ─────────────────────────────────────────────
