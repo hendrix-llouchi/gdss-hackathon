@@ -52,7 +52,7 @@ st.markdown("""
         background-color: transparent !important;
     }
     .block-container {
-        padding-top: 6rem !important;
+        padding-top: 2rem !important;
     }
 
     /* Typography */
@@ -77,9 +77,9 @@ st.markdown("""
     section[data-testid="stSidebar"] > div {
         background-color: #ffffff !important;
     }
-    /* Push sidebar content below the floating navbar capsule */
+    /* Adjust sidebar top padding */
     section[data-testid="stSidebar"] > div:first-child {
-        padding-top: 72px !important;
+        padding-top: 2rem !important;
     }
     section[data-testid="stSidebar"] h3 {
         font-size: 1.1rem !important;
@@ -228,10 +228,10 @@ st.markdown("""
         }
     }
 
-    /* Maintain viewport-based padding for the main content block container */
+    /* Adjust viewport-based padding for the main content block container */
     @media (max-width: 950px) {
         .block-container {
-            padding-top: 4.5rem !important;
+            padding-top: 1.5rem !important;
         }
     }
     /* Hide the zero-height iframe container used for JS injection so it doesn't add blank space */
