@@ -806,11 +806,58 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline", k
     compact_model_name = model_name.replace(" API", "")
     
     html = f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.25rem;">
-        <h3 style='margin:0; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>VisionLM</h3>
-        <div><span class='nav-badge'><span style='color:#22c55e; margin-right:4px;'>●</span>{compact_model_name}</span></div>
+    <div style="
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 0.85rem 1.5rem;
+        margin-top: 0.5rem;
+        margin-bottom: 1.5rem;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 16px;
+        box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -2px rgba(0, 0, 0, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+    ">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="
+                background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-family: 'Outfit', sans-serif; 
+                font-weight: 900; 
+                font-size: 1.5rem;
+                letter-spacing: -0.03em;
+                line-height: 1;
+            ">VisionLM</div>
+            <div style="font-size: 0.7rem; background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 99px; font-weight: 700; letter-spacing: 0.05em;">BETA</div>
+        </div>
+        <div>
+            <span style="
+                display: inline-flex;
+                align-items: center;
+                background: white;
+                border: 1px solid #e2e8f0;
+                padding: 0.4rem 0.85rem;
+                border-radius: 9999px;
+                font-family: 'Inter', sans-serif;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #475569;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            ">
+                <span style='color:#10b981; margin-right:8px; font-size: 0.6rem; animation: pulse 2s infinite;'>●</span>{compact_model_name}
+            </span>
+        </div>
     </div>
-    <hr style='margin-top: 0.5rem; margin-bottom: 1rem;'/>
+    <style>
+        @keyframes pulse {{
+            0% {{ opacity: 1; }}
+            50% {{ opacity: 0.4; }}
+            100% {{ opacity: 1; }}
+        }}
+    </style>
     """
     st.markdown(html, unsafe_allow_html=True)
 
