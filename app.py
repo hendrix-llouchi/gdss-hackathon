@@ -802,64 +802,28 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
-    pipeline_active = 'active-view' if current_view == 'pipeline' else ''
-    database_active = 'active-view' if current_view == 'database' else ''
-    
-    # Strip " API" to make it highly compact on mobile
+def render_navbar(active_step, model_name="Groq API", current_view="pipeline", key_suffix="main"):
     compact_model_name = model_name.replace(" API", "")
-
-    navbar_html = f"""
-    <div class="nav-wrapper">
-        <div class="nav-container">
-            <div class="nav-left-group">
-                <div class="nav-logo-container">
-                    <span class="nav-logo">GDSS</span>
-                </div>
-                <div class="nav-divider"></div>
-                <div class="nav-left">
-                    <a href="javascript:void(0);" onclick="switchView('pipeline')" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
-                        <span>🏭</span>
-                        <span class="nav-text-full">Pipeline</span>
-                        <span class="nav-text-mobile">Pipeline</span>
-                    </a>
-                    <a href="javascript:void(0);" onclick="switchView('database')" class="nav-view-link {database_active}">
-                        <span>📊</span>
-                        <span class="nav-text-full">Item Master Database</span>
-                        <span class="nav-text-mobile">Database</span>
-                    </a>
-                </div>
-            </div>
-            <div class="nav-right">
-                <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{compact_model_name}</span>
-            </div>
-        </div>
-    </div>
-    """
-    st.markdown(navbar_html, unsafe_allow_html=True)
     
-    # Inject JavaScript via a zero-height iframe component to bypass markdown script blocking
-    js_code = f"""
-    <script>
-    try {{
-        window.parent.eval(`
-            window.switchView = function(viewName) {{
-                try {{
-                    const url = new URL(window.parent.location);
-                    url.searchParams.set('view', viewName);
-                    window.parent.history.pushState({{}}, '', url);
-                    window.parent.dispatchEvent(new PopStateEvent('popstate'));
-                }} catch (e) {{
-                    console.error('Error in switchView:', e);
-                }}
-            }};
-        `);
-    }} catch (globalErr) {{
-        console.error('Error in JS injection iframe:', globalErr);
-    }}
-    </script>
-    """
-    components.html(js_code, height=0)
+    col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
+    
+    with col1:
+        st.markdown("<h3 style='margin:0; padding-top:0.25rem; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>GDSS</h3>", unsafe_allow_html=True)
+        
+    with col2:
+        if st.button("🏭 Pipeline", key=f"nav_pipe_{key_suffix}", use_container_width=True):
+            st.session_state.current_view = "pipeline"
+            st.rerun()
+            
+    with col3:
+        if st.button("📊 Item Master Database", key=f"nav_db_{key_suffix}", use_container_width=True):
+            st.session_state.current_view = "database"
+            st.rerun()
+            
+    with col4:
+        st.markdown(f"<div style='text-align: right; padding-top:0.5rem;'><span class='nav-badge'><span style='color:#22c55e; margin-right:4px;'>●</span>{compact_model_name}</span></div>", unsafe_allow_html=True)
+    
+    st.markdown("<hr style='margin-top: 0.5rem; margin-bottom: 1rem;'/>", unsafe_allow_html=True)
 
 
 def render_pipeline_stepper(active_step):
@@ -1331,7 +1295,9 @@ else:
 # ─────────────────────────────────────────────
 # Navigation handles URL updates directly via javascript History API (popstate)
 
-current_view = st.query_params.get("view", "pipeline")
+if "current_view" not in st.session_state:
+    st.session_state.current_view = "pipeline"
+current_view = st.session_state.current_view
 
 # ─────────────────────────────────────────────
 # STATE DETECTION FOR PIPELINE TABS
@@ -1349,7 +1315,7 @@ if uploaded_files_in_state or camera_snapshots_in_state:
 # ─────────────────────────────────────────────
 navbar_placeholder = st.empty()
 with navbar_placeholder.container():
-    render_navbar(active_step, engine, current_view)
+    render_navbar(active_step, engine, current_view, key_suffix="main")
 
 # ─────────────────────────────────────────────
 # ═══════════════════════════════════════════════
@@ -1732,7 +1698,7 @@ if all_files:
 
         # Update navbar and stepper to "Export/Preview" (active_step = 5)
         with navbar_placeholder.container():
-            render_navbar(5, engine, current_view)
+            render_navbar(5, engine, current_view, key_suffix="export")
         with stepper_placeholder.container():
             render_pipeline_stepper(5)
 
