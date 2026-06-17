@@ -610,11 +610,67 @@ st.markdown("""
         margin-bottom: 0.5rem !important;
     }
 
+    /* Navbar clickable view links */
+    .nav-view-link {
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+        opacity: 0.5 !important;
+        padding: 0.45rem 0.85rem !important;
+        border-radius: 10px !important;
+        cursor: pointer !important;
+        text-decoration: none !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+    }
+    .nav-view-link:hover {
+        opacity: 0.85 !important;
+        background-color: rgba(0,0,0,0.05) !important;
+    }
+    .nav-view-link.active-view {
+        opacity: 1 !important;
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+    .nav-divider {
+        width: 1px;
+        height: 20px;
+        background: #e2e8f0;
+        margin: 0 0.5rem;
+    }
+    /* Item Master Database table card */
+    .db-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        margin-bottom: 1.5rem;
+    }
+    .db-stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 0.3rem 0.75rem;
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
 
-def render_navbar(active_step, model_name="Groq API"):
+def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
     steps = [
         ("Upload", 1),
         ("Extract", 2),
@@ -624,18 +680,24 @@ def render_navbar(active_step, model_name="Groq API"):
     ]
     tabs_html = ""
     for label, step_num in steps:
-        if step_num == active_step:
+        if step_num == active_step and current_view == "pipeline":
             tabs_html += f'<span class="nav-tab active-tab"><span class="step-num active-num">{step_num}</span>{label}</span>'
         else:
             tabs_html += f'<span class="nav-tab"><span class="step-num">{step_num}</span>{label}</span>'
-            
+
+    pipeline_active = 'active-view' if current_view == 'pipeline' else ''
+    database_active = 'active-view' if current_view == 'database' else ''
+
     navbar_html = f"""
     <div class="nav-wrapper">
         <div class="nav-container">
             <div class="nav-left">
                 <span class="nav-logo">GDSS</span>
+                <div class="nav-divider" style="margin-left:1rem;"></div>
+                <a href="?view=pipeline" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">🏭 Pipeline</a>
+                <a href="?view=database" class="nav-view-link {database_active}">🗄️ Item Master Database</a>
             </div>
-            <div class="nav-center">
+            <div class="nav-center" style="{'display:none' if current_view=='database' else ''}">
                 {tabs_html}
             </div>
             <div class="nav-right">
@@ -683,6 +745,101 @@ Rules:
 - WEIGHT must have no space between number and unit"""
 
 TRIGGER = 'Extract the product data from this image and return only the JSON object. Use "" for missing fields. Never use null.'
+
+# ─────────────────────────────────────────────
+# SUPABASE HELPERS
+# ─────────────────────────────────────────────
+def supabase_upsert_product(url, key, imdb_row):
+    """
+    Upsert a product into the Supabase item_master table.
+    If barcode matches an existing record, increments scan_count and updates fields.
+    If no barcode, falls back to item_name match.
+    Returns (success: bool, message: str).
+    """
+    if not url or not key:
+        return False, "Supabase credentials not configured."
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    barcode = imdb_row.get("BARCODE", "").strip()
+    item_name = imdb_row.get("ITEM NAME", "").strip()
+
+    # Build lookup filter: prefer barcode, fallback to item_name
+    if barcode:
+        lookup_url = f"{url}/rest/v1/item_master?barcode=eq.{barcode}&select=id,scan_count"
+    elif item_name:
+        import urllib.parse
+        lookup_url = f"{url}/rest/v1/item_master?item_name=eq.{urllib.parse.quote(item_name)}&select=id,scan_count"
+    else:
+        return False, "Product has no barcode or item name to match."
+
+    try:
+        existing = requests.get(lookup_url, headers=headers, timeout=15)
+        existing.raise_for_status()
+        rows = existing.json()
+
+        record = {
+            "item_name":        imdb_row.get("ITEM NAME", ""),
+            "barcode":          barcode,
+            "manufacturer":     imdb_row.get("MANUFACTURER", ""),
+            "brand":            imdb_row.get("BRAND", ""),
+            "weight":           imdb_row.get("WEIGHT", ""),
+            "packaging_type":   imdb_row.get("PACKAGING TYPE", ""),
+            "country":          imdb_row.get("COUNTRY", ""),
+            "variant":          imdb_row.get("VARIANT", ""),
+            "type":             imdb_row.get("TYPE", ""),
+            "fragrance_flavor": imdb_row.get("FRAGRANCE FLAVOR", ""),
+            "promotion":        imdb_row.get("PROMOTION", ""),
+            "addons":           imdb_row.get("ADDONS", ""),
+            "tagline":          imdb_row.get("TAGLINE", ""),
+            "last_updated":     "now()",
+        }
+
+        if rows:
+            existing_id = rows[0]["id"]
+            existing_scan_count = rows[0].get("scan_count", 1)
+            record["scan_count"] = existing_scan_count + 1
+            patch_url = f"{url}/rest/v1/item_master?id=eq.{existing_id}"
+            resp = requests.patch(patch_url, json=record, headers=headers, timeout=15)
+            resp.raise_for_status()
+            return True, f"Updated (scan #{record['scan_count']})"
+        else:
+            record["scan_count"] = 1
+            post_url = f"{url}/rest/v1/item_master"
+            resp = requests.post(post_url, json=record, headers=headers, timeout=15)
+            resp.raise_for_status()
+            return True, "Inserted as new entry"
+    except Exception as e:
+        return False, str(e)
+
+
+def supabase_get_products(url, key, search_query=""):
+    """
+    Fetch all products from Supabase item_master, optionally filtered by brand or item_name.
+    Returns (rows: list[dict], error: str|None).
+    """
+    if not url or not key:
+        return [], "Supabase credentials not configured."
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        params = "select=*&order=last_updated.desc"
+        if search_query:
+            import urllib.parse
+            q = urllib.parse.quote(search_query)
+            params += f"&or=(brand.ilike.*{q}*,item_name.ilike.*{q}*)"
+        resp = requests.get(f"{url}/rest/v1/item_master?{params}", headers=headers, timeout=15)
+        resp.raise_for_status()
+        return resp.json(), None
+    except Exception as e:
+        return [], str(e)
+
 
 # ─────────────────────────────────────────────
 # HELPERS
@@ -880,6 +1037,10 @@ if "camera_snapshots" not in st.session_state:
     st.session_state.camera_snapshots = []
 if "last_added_photo" not in st.session_state:
     st.session_state.last_added_photo = None
+if "supabase_url" not in st.session_state:
+    st.session_state.supabase_url = os.environ.get("SUPABASE_URL", "")
+if "supabase_key" not in st.session_state:
+    st.session_state.supabase_key = os.environ.get("SUPABASE_KEY", "")
 
 
 # ─────────────────────────────────────────────
@@ -908,6 +1069,21 @@ with st.expander("⚙️ Model Configuration", expanded=False):
                 placeholder="sk-or-v1-...",
                 key="openrouter_api_key"
             )
+    st.markdown("---")
+    col3, col4 = st.columns(2)
+    with col3:
+        st.text_input(
+            "Supabase URL",
+            placeholder="https://xxxx.supabase.co",
+            key="supabase_url"
+        )
+    with col4:
+        st.text_input(
+            "Supabase API Key",
+            type="password",
+            placeholder="your-supabase-anon-key",
+            key="supabase_key"
+        )
 
 # Resolve the active api_key from the correct session state slot
 if st.session_state.engine == "Groq API":
@@ -916,7 +1092,12 @@ else:
     api_key = st.session_state.openrouter_api_key
 
 # ─────────────────────────────────────────────
-# STATE DETECTION FOR TABS
+# VIEW ROUTING (Pipeline vs Item Master Database)
+# ─────────────────────────────────────────────
+current_view = st.query_params.get("view", "pipeline")
+
+# ─────────────────────────────────────────────
+# STATE DETECTION FOR PIPELINE TABS
 # ─────────────────────────────────────────────
 active_step = 1
 uploaded_files_in_state = st.session_state.get("uploader", [])
@@ -927,12 +1108,100 @@ if uploaded_files_in_state or camera_snapshots_in_state:
         active_step = 5
 
 # ─────────────────────────────────────────────
-# HEADER (NAVBAR & WELCOME GREETING)
+# HEADER (NAVBAR)
 # ─────────────────────────────────────────────
 navbar_placeholder = st.empty()
 with navbar_placeholder.container():
-    render_navbar(active_step, engine)
+    render_navbar(active_step, engine, current_view)
 
+# ─────────────────────────────────────────────
+# ═══════════════════════════════════════════════
+# VIEW: ITEM MASTER DATABASE
+# ═══════════════════════════════════════════════
+if current_view == "database":
+    st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>🗄️ Item Master Database</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 1.5rem;'>Browse, search, and manage all previously extracted products stored in Supabase.</p>", unsafe_allow_html=True)
+
+    _sb_url = st.session_state.get("supabase_url", "")
+    _sb_key = st.session_state.get("supabase_key", "")
+
+    if not _sb_url or not _sb_key:
+        st.warning("⚙️ Please enter your **Supabase URL** and **API Key** in the **⚙️ Model Configuration** expander above to enable database features.")
+    else:
+        # ── Search bar ──────────────────────────────────────────────────
+        col_search, col_refresh = st.columns([3, 1])
+        with col_search:
+            search_query = st.text_input(
+                "🔍 Search by Brand or Product Name",
+                placeholder="e.g. KNORR or CHICKEN STOCK...",
+                label_visibility="collapsed"
+            )
+        with col_refresh:
+            do_refresh = st.button("🔄 Refresh", use_container_width=True)
+
+        # ── Fetch data ──────────────────────────────────────────────────
+        rows, fetch_err = supabase_get_products(_sb_url, _sb_key, search_query)
+
+        if fetch_err:
+            st.error(f"❌ Could not load data from Supabase: {fetch_err}")
+        elif not rows:
+            st.info("📭 No products found. Run the pipeline and sync results to populate the database.")
+        else:
+            # ── Compute duplicate flag ──────────────────────────────────
+            from collections import Counter as _Counter
+            barcode_counts = _Counter(r.get("barcode", "") for r in rows if r.get("barcode", ""))
+            
+            # ── Summary chips ───────────────────────────────────────────
+            total_products = len(rows)
+            total_scans = sum(r.get("scan_count", 1) for r in rows)
+            total_duplicates = sum(1 for r in rows if barcode_counts.get(r.get("barcode", ""), 0) > 1)
+            st.markdown(
+                f'<div style="margin-bottom:1rem;">'
+                f'<span class="db-stat-chip">📦 {total_products} Products</span>'
+                f'<span class="db-stat-chip">📸 {total_scans} Total Scans</span>'
+                f'<span class="db-stat-chip">⚠️ {total_duplicates} Duplicate Barcodes</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+            # ── Build display DataFrame ─────────────────────────────────
+            db_rows = []
+            for r in rows:
+                bc = r.get("barcode", "")
+                is_dup = barcode_counts.get(bc, 0) > 1 if bc else False
+                last_upd = r.get("last_updated", "")
+                if last_upd and "T" in last_upd:
+                    last_upd = last_upd.replace("T", " ")[:16]
+                db_rows.append({
+                    "Product Name":    r.get("item_name", ""),
+                    "Brand":           r.get("brand", ""),
+                    "Barcode":         bc,
+                    "Weight":          r.get("weight", ""),
+                    "Type":            r.get("type", ""),
+                    "Country":         r.get("country", ""),
+                    "Packaging":       r.get("packaging_type", ""),
+                    "Scan Count":      r.get("scan_count", 1),
+                    "Duplicate Flag":  "Yes" if is_dup else "No",
+                    "Last Updated":    last_upd,
+                })
+
+            db_df = pd.DataFrame(db_rows)
+            st.dataframe(
+                db_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Scan Count":   st.column_config.NumberColumn("Scan Count", format="%d 📸"),
+                    "Duplicate Flag": st.column_config.TextColumn("Duplicate Flag"),
+                    "Last Updated": st.column_config.TextColumn("Last Updated"),
+                }
+            )
+
+    st.stop()   # Do not render pipeline below
+
+# ═══════════════════════════════════════════════
+# VIEW: PIPELINE (default)
+# ═══════════════════════════════════════════════
 st.markdown("<h2 style='font-family: \"Playfair Display\", Georgia, serif; font-weight: 800; font-size: 2.2rem; color: #0f172a; margin-top: 1rem; margin-bottom: 0.25rem;'>🏷️ IMDB Auto-Fill</h2>", unsafe_allow_html=True)
 st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font-size: 1.05rem; margin-bottom: 2rem;'>Welcome back! Streamline retail master data cataloging with AI-driven extraction.</p>", unsafe_allow_html=True)
 st.divider()
@@ -1172,10 +1441,26 @@ if all_files:
                 st.warning(f"⚠️ Could not delete checkpoint file: {e}")
 
         st.markdown('<div class="success-banner">✅ Pipeline complete!</div>', unsafe_allow_html=True)
-        
+
+        # ── Auto-sync to Supabase ─────────────────────────────────────
+        _sb_url = st.session_state.get("supabase_url", "")
+        _sb_key = st.session_state.get("supabase_key", "")
+        if _sb_url and _sb_key:
+            sync_status = st.empty()
+            sync_status.info("⏳ Syncing results to Supabase...")
+            sync_errors = []
+            for imdb_row in results:
+                ok, msg = supabase_upsert_product(_sb_url, _sb_key, imdb_row)
+                if not ok:
+                    sync_errors.append(msg)
+            if sync_errors:
+                sync_status.warning(f"⚠️ Supabase sync had {len(sync_errors)} error(s): {sync_errors[0]}")
+            else:
+                sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase!")
+
         # Update navbar to "Export/Preview" (active_step = 5)
         with navbar_placeholder.container():
-            render_navbar(5, engine)
+            render_navbar(5, engine, current_view)
 
 # ─────────────────────────────────────────────
 # STEP 3 — PREVIEW & EDIT
@@ -1228,3 +1513,23 @@ if st.session_state.results:
             mime="text/csv",
             use_container_width=True
         )
+
+    # ── Manual Supabase Sync ─────────────────────────────────────────
+    _sb_url = st.session_state.get("supabase_url", "")
+    _sb_key = st.session_state.get("supabase_key", "")
+    if _sb_url and _sb_key:
+        st.markdown("---")
+        if st.button("☁️ Sync Edits to Supabase", use_container_width=True):
+            rows_to_sync = edited.to_dict("records")
+            sync_errors = []
+            with st.spinner(f"Syncing {len(rows_to_sync)} product(s) to Supabase..."):
+                for row in rows_to_sync:
+                    ok, msg = supabase_upsert_product(_sb_url, _sb_key, row)
+                    if not ok:
+                        sync_errors.append(msg)
+            if sync_errors:
+                st.warning(f"⚠️ {len(sync_errors)} error(s) during sync: {sync_errors[0]}")
+            else:
+                st.success(f"✅ {len(rows_to_sync)} product(s) synced to Supabase successfully!")
+    else:
+        st.caption("💡 Configure Supabase credentials in **⚙️ Model Configuration** to enable cloud sync.")
