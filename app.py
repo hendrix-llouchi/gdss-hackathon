@@ -578,6 +578,37 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
+    /* Camera Input Widget styling */
+    div[data-testid="stCameraInput"] {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02) !important;
+        background-color: #ffffff !important;
+        margin-bottom: 1rem !important;
+    }
+    div[data-testid="stCameraInput"] button,
+    div[data-testid="stCameraInput"] button * {
+        color: #ffffff !important;
+        background-color: #000000 !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stCameraInput"] button:hover {
+        background-color: #222222 !important;
+    }
+
+    /* Compact Snapshot Gallery Grid */
+    .snap-card-title {
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        color: #475569 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 0.25rem !important;
+        margin-bottom: 0.5rem !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -656,8 +687,18 @@ TRIGGER = 'Extract the product data from this image and return only the JSON obj
 # ─────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────
+class NamedBytesIO(io.BytesIO):
+    """File-like wrapper for captured image bytes with a custom name and size."""
+    def __init__(self, content, name):
+        super().__init__(content)
+        self.name = name
+        self.size = len(content)
+
+
 def preprocess_image(image_file, max_size=(1024, 1024)):
     """Resize and base64-encode an image. Use smaller max_size for local models."""
+    if hasattr(image_file, "seek"):
+        image_file.seek(0)
     img = Image.open(image_file)
     if img.mode != "RGB":
         img = img.convert("RGB")
@@ -835,6 +876,8 @@ if "openrouter_api_key" not in st.session_state:
     st.session_state.openrouter_api_key = OPENROUTER_API_KEY
 if "engine" not in st.session_state:
     st.session_state.engine = "Groq API"
+if "camera_snapshots" not in st.session_state:
+    st.session_state.camera_snapshots = []
 
 
 # ─────────────────────────────────────────────
@@ -875,7 +918,8 @@ else:
 # ─────────────────────────────────────────────
 active_step = 1
 uploaded_files_in_state = st.session_state.get("uploader", [])
-if uploaded_files_in_state:
+camera_snapshots_in_state = st.session_state.get("camera_snapshots", [])
+if uploaded_files_in_state or camera_snapshots_in_state:
     active_step = 2
     if st.session_state.get("results"):
         active_step = 5
@@ -892,36 +936,97 @@ st.markdown("<p style='font-family: \"Outfit\", sans-serif; color: #64748b; font
 st.divider()
 
 # ─────────────────────────────────────────────
-# STEP 1 — UPLOAD
+# STEP 1 — ACQUIRE PRODUCT IMAGES
 # ─────────────────────────────────────────────
-st.markdown("### Step 1 — Upload Product Images")
-st.caption("Upload multiple images of the same product (different sides/angles) or images from different products. The system groups them by product automatically.")
+st.markdown("### Step 1 — Acquire Product Images")
+st.caption("Provide product images by uploading files or capturing snapshots using your device camera.")
 
-uploaded_files = st.file_uploader(
-    "Drop images here or click to browse",
-    type=["jpg", "jpeg", "png"],
-    accept_multiple_files=True,
-    key="uploader"
-)
+tab_upload, tab_camera = st.tabs(["📁 Upload Files", "📸 Capture Snapshots"])
 
+with tab_upload:
+    uploaded_files = st.file_uploader(
+        "Drop images here or click to browse",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key="uploader"
+    )
+
+with tab_camera:
+    col_pid, col_clear = st.columns([2, 1])
+    with col_pid:
+        camera_product_id = st.text_input(
+            "Product ID / Prefix",
+            value="PRODUCT1",
+            help="Specify a prefix (e.g. S12345) to group your camera snapshots."
+        ).strip().upper()
+    with col_clear:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🗑️ Clear Snapshots", use_container_width=True):
+            st.session_state.camera_snapshots = []
+            st.success("Snapshot queue cleared!")
+            st.rerun()
+
+    camera_photo = st.camera_input("Take a snapshot of the product or product parts")
+
+    if camera_photo is not None:
+        if not camera_product_id:
+            st.warning("⚠️ Please specify a Product ID / Prefix before saving.")
+        else:
+            photo_bytes = camera_photo.getvalue()
+            # Unique identification using a timestamp
+            if st.button(f"➕ Add Snapshot to {camera_product_id} Queue", use_container_width=True):
+                timestamp = int(time.time())
+                filename = f"{camera_product_id}_snap_{timestamp}.jpg"
+                
+                # Wrap photo bytes in NamedBytesIO
+                snap_file = NamedBytesIO(photo_bytes, filename)
+                st.session_state.camera_snapshots.append(snap_file)
+                st.toast(f"✅ Saved `{filename}`!")
+                st.rerun()
+
+    # Display camera snapshot queue grid if any exist
+    if st.session_state.camera_snapshots:
+        st.markdown("<h4 style='margin-top: 1.5rem;'>📸 Captured Snapshots Queue</h4>", unsafe_allow_html=True)
+        snap_cols = st.columns(2)
+        for idx, snap in enumerate(st.session_state.camera_snapshots):
+            with snap_cols[idx % 2]:
+                with st.container(border=True):
+                    st.image(snap.getvalue(), use_container_width=True)
+                    st.markdown(f"<p class='snap-card-title' style='text-align: center;'>{snap.name}</p>", unsafe_allow_html=True)
+                    if st.button("🗑️ Remove", key=f"del_snap_{idx}", use_container_width=True):
+                        st.session_state.camera_snapshots.pop(idx)
+                        st.rerun()
+
+# Merge all files from both uploader and camera
+all_files = []
 if uploaded_files:
+    all_files.extend(uploaded_files)
+if st.session_state.camera_snapshots:
+    all_files.extend(st.session_state.camera_snapshots)
+
+if all_files:
     # Group by product ID (filename prefix)
     groups = defaultdict(list)
-    for f in uploaded_files:
+    for f in all_files:
         product_id = f.name.split("_")[0]
         groups[product_id].append(f)
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Images uploaded", len(uploaded_files))
+    col1.metric("Total images", len(all_files))
     col2.metric("Products detected", len(groups))
-    col3.metric("Avg images/product", f"{len(uploaded_files)/len(groups):.1f}")
+    col3.metric("Avg images/product", f"{len(all_files)/len(groups):.1f}" if groups else "0.0")
 
     # Show image previews
-    with st.expander("Preview uploaded images", expanded=False):
+    with st.expander("Preview product images", expanded=False):
         cols = st.columns(5)
-        for i, f in enumerate(uploaded_files[:10]):
+        for i, f in enumerate(all_files[:10]):
             with cols[i % 5]:
-                st.image(f, caption=f.name, use_container_width=True)
+                if hasattr(f, "seek"):
+                    f.seek(0)
+                if hasattr(f, "getvalue"):
+                    st.image(f.getvalue(), caption=f.name, use_container_width=True)
+                else:
+                    st.image(f, caption=f.name, use_container_width=True)
 
     st.divider()
 
