@@ -808,7 +808,7 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline", k
     col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
     
     with col1:
-        st.markdown("<h3 style='margin:0; padding-top:0.25rem; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>GDSS</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin:0; padding-top:0.25rem; font-family: Playfair Display, serif; font-weight:800; color:#0f172a;'>VisionLM</h3>", unsafe_allow_html=True)
         
     with col2:
         if st.button("🏭 Pipeline", key=f"nav_pipe_{key_suffix}", use_container_width=True):
