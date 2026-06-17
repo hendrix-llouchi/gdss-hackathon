@@ -981,14 +981,9 @@ def supabase_upsert_product(imdb_row):
     
     existing_records = None
     try:
-        # Fetch up to 5000 products to do local fuzzy match
-        resp = client.table("imdb_products").select("*").limit(5000).execute()
-        all_prods = resp.data
-        
-        for p in all_prods:
-            if is_duplicate_product(db_fields, p):
-                existing_records = [p]
-                break
+        # Check if a row with the same item_name already exists
+        resp = client.table("imdb_products").select("*").eq("item_name", item_name).execute()
+        existing_records = resp.data
                 
         if existing_records and len(existing_records) > 0:
             existing = existing_records[0]
@@ -1672,24 +1667,9 @@ if all_files:
         # ── Auto-sync to Supabase ─────────────────────────────────────
         client = get_supabase_client()
         if client:
-            sync_status = st.empty()
-            sync_status.info("⏳ Syncing results to Supabase...")
-            sync_errors = []
-            inserts_count = 0
-            updates_count = 0
             for imdb_row in results:
-                ok, msg = supabase_upsert_product(imdb_row)
-                if not ok:
-                    sync_errors.append(msg)
-                else:
-                    if "Updated" in msg:
-                        updates_count += 1
-                    else:
-                        inserts_count += 1
-            if sync_errors:
-                sync_status.warning(f"⚠️ Supabase sync had {len(sync_errors)} error(s): {sync_errors[0]}")
-            else:
-                sync_status.success(f"☁️ {len(results)} product(s) synced to Supabase ({inserts_count} new, {updates_count} duplicate/updated)!")
+                supabase_upsert_product(imdb_row)
+            st.success("✅ Synced to Item Master Database")
 
         # Update stepper to "Export/Preview" (active_step = 5)
         with stepper_placeholder.container():
