@@ -665,7 +665,7 @@ def preprocess_image(image_file, max_size=(1024, 1024)):
 
 GROQ_API_KEY       = ""
 OPENROUTER_API_KEY = ""
-GROQ_DELAY_SEC     = 2                       # Minimum seconds between Groq/OpenRouter requests
+GROQ_DELAY_SEC     = 6                       # Minimum seconds between Groq/OpenRouter requests
 
 
 def extract_via_groq(b64_image, api_key, max_retries=5):
@@ -687,7 +687,6 @@ def extract_via_groq(b64_image, api_key, max_retries=5):
         ]
     }
     for attempt in range(max_retries):
-        time.sleep(3)  # Sleep 3 seconds before every API call to stay under 30 RPM limit
         resp = requests.post(url, json=payload, headers=headers, timeout=90)
         if resp.status_code == 429:
             wait = 30 * (2 ** attempt)
@@ -720,7 +719,6 @@ def extract_via_openrouter(b64_image, api_key, max_retries=5):
             ]}
         ]
     }
-    time.sleep(GROQ_DELAY_SEC)
     for attempt in range(max_retries):
         resp = requests.post(url, json=payload, headers=headers, timeout=90)
         if resp.status_code == 429:
@@ -925,29 +923,37 @@ if uploaded_files:
             st.warning(f"⚠️ Could not read checkpoint file: {e}")
 
     if st.button("🚀 Run Pipeline", use_container_width=True):
-        results = []
-        progress = st.progress(0)
-        status = st.empty()
-        total = len(groups)
-
-        for i, (product_id, files) in enumerate(groups.items()):
-            # Update navbar to "Extract" (active_step = 2)
-            with navbar_placeholder.container():
-                render_navbar(2, engine)
-                
+        # Create a dictionary to hold results by product ID to preserve the original order of products
+        results_by_product = {}
+        for product_id in groups:
             if product_id in done_ids:
-                status.markdown(f"⚡ **Skipping (loaded from checkpoint):** `{product_id}`")
                 matched_record = next(r for r in checkpoint_records if r.get("_product_id") == product_id)
-                results.append(to_imdb(matched_record))
-                progress.progress((i + 1) / total)
-                time.sleep(0.1)  # Brief delay for visual transition
+                results_by_product[product_id] = to_imdb(matched_record)
+
+        # Build a single flat queue of images to process across all non-checkpointed products
+        queue = []
+        for product_id, files in groups.items():
+            if product_id in done_ids:
                 continue
-
-            status.markdown(f"**Processing:** `{product_id}` ({len(files)} image(s))...")
-            image_records = []
-
             for f in files:
-                # Use smaller images for local model to speed up inference
+                queue.append((product_id, f))
+
+        total_images = len(queue)
+
+        if total_images > 0:
+            progress = st.progress(0)
+            status = st.empty()
+            
+            extracted_by_product = defaultdict(list)
+            processed_count_by_product = defaultdict(int)
+
+            for idx, (product_id, f) in enumerate(queue):
+                # Update navbar to "Extract" (active_step = 2)
+                with navbar_placeholder.container():
+                    render_navbar(2, engine)
+                
+                status.markdown(f"**Processing Image {idx + 1}/{total_images}:** `{f.name}` (Product `{product_id}`)...")
+                
                 timer_slot = st.empty()
                 start = time.time()
                 try:
@@ -961,38 +967,47 @@ if uploaded_files:
 
                     elapsed = time.time() - start
                     timer_slot.success(f"✅ `{f.name}` done in {elapsed:.1f}s")
-                    image_records.append(record)
+                    extracted_by_product[product_id].append(record)
                 except Exception as e:
                     timer_slot.warning(f"⚠️ Could not extract from `{f.name}`: {e}")
 
-            if image_records:
-                # Update navbar to "Aggregate" (active_step = 3)
-                with navbar_placeholder.container():
-                    render_navbar(3, engine)
-                merged = aggregate(image_records)
-                
-                # Update navbar to "Validate" (active_step = 4)
-                with navbar_placeholder.container():
-                    render_navbar(4, engine)
-                merged = validate(merged)
-                
-                # Save to checkpoint
-                merged["_product_id"] = product_id
-                checkpoint_records.append(merged)
-                try:
-                    with open(checkpoint_path, "w", encoding="utf-8") as f_out:
-                        json.dump(checkpoint_records, f_out, ensure_ascii=False, indent=2)
-                except Exception as e:
-                    st.warning(f"⚠️ Could not save checkpoint: {e}")
+                # Enforce a 6-second sleep between each API call in the queue
+                if idx < total_images - 1:
+                    status.markdown(f"⏳ Sleeping 6 seconds before next API call...")
+                    time.sleep(6)
 
-                results.append(to_imdb(merged))
+                processed_count_by_product[product_id] += 1
+                if processed_count_by_product[product_id] == len(groups[product_id]):
+                    # All images for this product have been processed, let's aggregate and validate!
+                    if extracted_by_product[product_id]:
+                        with navbar_placeholder.container():
+                            render_navbar(3, engine)
+                        merged = aggregate(extracted_by_product[product_id])
+                        
+                        with navbar_placeholder.container():
+                            render_navbar(4, engine)
+                        merged = validate(merged)
+                        
+                        merged["_product_id"] = product_id
+                        checkpoint_records.append(merged)
+                        try:
+                            with open(checkpoint_path, "w", encoding="utf-8") as f_out:
+                                json.dump(checkpoint_records, f_out, ensure_ascii=False, indent=2)
+                        except Exception as e:
+                            st.warning(f"⚠️ Could not save checkpoint: {e}")
+                            
+                        results_by_product[product_id] = to_imdb(merged)
 
-            progress.progress((i + 1) / total)
+                progress.progress((idx + 1) / total_images)
 
+            status.empty()
+            progress.empty()
+
+        # Reassemble the final results in the exact original order of the products
+        results = [results_by_product[pid] for pid in groups if pid in results_by_product]
+        
         st.session_state.results = results
         st.session_state.edited_df = pd.DataFrame(results, columns=IMDB_COLS)
-        status.empty()
-        progress.empty()
         
         # Clean up checkpoint after successful full completion
         if checkpoint_path.exists():
