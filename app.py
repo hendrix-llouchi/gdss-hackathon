@@ -4,6 +4,7 @@ AI-Driven Image-to-IMDB Tool
 Streamlit UI
 """
 
+import os
 import streamlit as st
 from supabase import create_client
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "") or os.environ.get("SUPABASE_URL", "")
@@ -17,7 +18,6 @@ import re
 import base64
 import requests
 import io
-import os
 import time
 from pathlib import Path
 from PIL import Image
