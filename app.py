@@ -860,7 +860,12 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
                 if (btn.textContent.includes('switch_to_pipeline') || btn.textContent.includes('switch_to_database')) {{
                     const container = btn.closest('div[data-testid="element-container"]') || btn.parentElement;
                     if (container) {{
-                        container.style.setProperty('display', 'none', 'important');
+                        container.style.setProperty('position', 'fixed', 'important');
+                        container.style.setProperty('left', '-9999px', 'important');
+                        container.style.setProperty('top', '-9999px', 'important');
+                        container.style.setProperty('width', '1px', 'important');
+                        container.style.setProperty('height', '1px', 'important');
+                        container.style.setProperty('overflow', 'hidden', 'important');
                     }}
                 }}
             }});
