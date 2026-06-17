@@ -295,7 +295,7 @@ st.markdown("""
         justify-content: center !important;
         width: 40px !important;
         height: 40px !important;
-        background: #0f172a !important;
+        background: #000000 !important;
         border-radius: 12px !important;
         cursor: pointer !important;
         margin-right: 1.25rem !important;
@@ -304,7 +304,7 @@ st.markdown("""
         user-select: none !important;
     }
     .nav-hamburger:hover {
-        background: #1e293b !important;
+        background: #000000 !important;
         transform: scale(1.05) !important;
     }
     /* Hide Streamlit's native header bar (Deploy btn, ⋮ menu) */
@@ -500,7 +500,7 @@ st.markdown("""
 
     /* Buttons */
     div.stButton > button, div.stDownloadButton > button {
-        background-color: #0f172a !important;
+        background-color: #000000 !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 12px !important;
@@ -508,13 +508,13 @@ st.markdown("""
         font-family: 'Outfit', sans-serif !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
         transition: all 0.2s ease !important;
         width: 100% !important;
     }
     div.stButton > button:hover, div.stDownloadButton > button:hover {
-        background-color: #1e293b !important;
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12) !important;
+        background-color: #222222 !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
         transform: translateY(-1px) !important;
     }
     div.stButton > button:active, div.stDownloadButton > button:active {
@@ -545,10 +545,10 @@ st.markdown("""
     div[data-testid="stFileUploader"] section button,
     div[data-testid="stFileUploader"] section button * {
         color: #ffffff !important;
-        background-color: #0f172a !important;
+        background-color: #000000 !important;
     }
     div[data-testid="stFileUploader"] section button:hover {
-        background-color: #1e293b !important;
+        background-color: #222222 !important;
     }
 
     /* Table & Dataframe */
