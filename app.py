@@ -716,6 +716,90 @@ st.markdown("""
         user-select: none;
     }
 
+    /* Responsive Navbar Text wrappers */
+    .nav-text-mobile {
+        display: none !important;
+    }
+    
+    /* Hide logo & divider on mobile/small screens */
+    @media (max-width: 600px) {
+        .nav-logo, .nav-divider {
+            display: none !important;
+        }
+        .nav-badge {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+        }
+        .nav-view-link {
+            font-size: 0.82rem !important;
+            padding: 0.35rem 0.65rem !important;
+            gap: 0.25rem !important;
+        }
+    }
+    
+    /* Shorten database label on tablets/phones */
+    @media (max-width: 768px) {
+        .nav-text-full {
+            display: none !important;
+        }
+        .nav-text-mobile {
+            display: inline !important;
+        }
+    }
+    
+    /* Icon-only mode for very small screens (phones in portrait) */
+    @media (max-width: 480px) {
+        .nav-text-mobile, .nav-text-full {
+            display: none !important;
+        }
+        .nav-view-link {
+            padding: 0.5rem !important;
+            border-radius: 50% !important;
+            width: 36px !important;
+            height: 36px !important;
+            justify-content: center !important;
+        }
+        .nav-left {
+            gap: 0.5rem !important;
+        }
+        .nav-badge {
+            font-size: 0 !important; /* hide the text label */
+            padding: 0.5rem !important;
+            border-radius: 50% !important;
+            width: 32px !important;
+            height: 32px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .nav-badge span {
+            margin-right: 0 !important; /* center the active dot */
+        }
+    }
+    
+    /* Stepper Mobile Collapsing Rules */
+    @media (max-width: 600px) {
+        /* Hide text labels of inactive steps */
+        .page-tab:not(.active-tab) .step-label {
+            display: none !important;
+        }
+        .stepper-container {
+            gap: 0.5rem !important;
+        }
+        .page-tab {
+            padding: 0.35rem 0.55rem !important;
+        }
+        .stepper-arrow {
+            font-size: 0.85rem !important;
+        }
+        .step-num {
+            margin-right: 0 !important; /* center number since label is hidden */
+        }
+        .page-tab.active-tab .step-num {
+            margin-right: 6px !important; /* restore margin for active step */
+        }
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -730,8 +814,16 @@ def render_navbar(active_step, model_name="Groq API", current_view="pipeline"):
             <div class="nav-left">
                 <span class="nav-logo">GDSS</span>
                 <div class="nav-divider" style="margin-left:1rem;"></div>
-                <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">🏭 Pipeline</a>
-                <a href="?view=database" target="_self" class="nav-view-link {database_active}">📊 Item Master Database</a>
+                <a href="?view=pipeline" target="_self" class="nav-view-link {pipeline_active}" style="margin-left:0.5rem;">
+                    <span>🏭</span>
+                    <span class="nav-text-full">Pipeline</span>
+                    <span class="nav-text-mobile">Pipeline</span>
+                </a>
+                <a href="?view=database" target="_self" class="nav-view-link {database_active}">
+                    <span>📊</span>
+                    <span class="nav-text-full">Item Master Database</span>
+                    <span class="nav-text-mobile">Database</span>
+                </a>
             </div>
             <div class="nav-right">
                 <span class="nav-badge"><span style="color: #22c55e; margin-right: 6px; font-size: 1rem; line-height: 1;">●</span>{model_name}</span>
@@ -753,9 +845,9 @@ def render_pipeline_stepper(active_step):
     tabs_html = ""
     for i, (label, step_num) in enumerate(steps):
         if step_num == active_step:
-            tabs_html += f'<div class="page-tab active-tab"><span class="step-num active-num">{step_num}</span>{label}</div>'
+            tabs_html += f'<div class="page-tab active-tab"><span class="step-num active-num">{step_num}</span><span class="step-label">{label}</span></div>'
         else:
-            tabs_html += f'<div class="page-tab"><span class="step-num">{step_num}</span>{label}</div>'
+            tabs_html += f'<div class="page-tab"><span class="step-num">{step_num}</span><span class="step-label">{label}</span></div>'
         if i < len(steps) - 1:
             tabs_html += '<span class="stepper-arrow">→</span>'
 
