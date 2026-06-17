@@ -878,6 +878,8 @@ if "engine" not in st.session_state:
     st.session_state.engine = "Groq API"
 if "camera_snapshots" not in st.session_state:
     st.session_state.camera_snapshots = []
+if "camera_key_index" not in st.session_state:
+    st.session_state.camera_key_index = 0
 
 
 # ─────────────────────────────────────────────
@@ -966,7 +968,8 @@ with tab_camera:
             st.success("Snapshot queue cleared!")
             st.rerun()
 
-    camera_photo = st.camera_input("Take a snapshot of the product or product parts")
+    camera_key = f"camera_widget_{st.session_state.camera_key_index}"
+    camera_photo = st.camera_input("Take a snapshot of the product or product parts", key=camera_key)
 
     if camera_photo is not None:
         if not camera_product_id:
@@ -981,6 +984,7 @@ with tab_camera:
                 # Wrap photo bytes in NamedBytesIO
                 snap_file = NamedBytesIO(photo_bytes, filename)
                 st.session_state.camera_snapshots.append(snap_file)
+                st.session_state.camera_key_index += 1
                 st.toast(f"✅ Saved `{filename}`!")
                 st.rerun()
 
